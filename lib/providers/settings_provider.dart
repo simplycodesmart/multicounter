@@ -11,24 +11,32 @@ class SettingsState {
     this.accentColor = AppTheme.accentGold,
     this.hapticFeedback = true,
     this.defaultCounterType = CounterType.countdown,
+    this.colorBlindMode = ColorBlindMode.none,
+    this.deafHapticAlert = true,
   });
 
   final ThemeMode themeMode;
   final Color accentColor;
   final bool hapticFeedback;
   final CounterType defaultCounterType;
+  final ColorBlindMode colorBlindMode;
+  final bool deafHapticAlert;
 
   SettingsState copyWith({
     ThemeMode? themeMode,
     Color? accentColor,
     bool? hapticFeedback,
     CounterType? defaultCounterType,
+    ColorBlindMode? colorBlindMode,
+    bool? deafHapticAlert,
   }) {
     return SettingsState(
       themeMode: themeMode ?? this.themeMode,
       accentColor: accentColor ?? this.accentColor,
       hapticFeedback: hapticFeedback ?? this.hapticFeedback,
       defaultCounterType: defaultCounterType ?? this.defaultCounterType,
+      colorBlindMode: colorBlindMode ?? this.colorBlindMode,
+      deafHapticAlert: deafHapticAlert ?? this.deafHapticAlert,
     );
   }
 }
@@ -38,6 +46,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
   static const _keyAccentColor = 'multicounter.settings.accent_color';
   static const _keyHaptic = 'multicounter.settings.haptic';
   static const _keyDefaultType = 'multicounter.settings.default_type';
+  static const _keyColorBlindMode = 'multicounter.settings.color_blind';
+  static const _keyDeafHaptic = 'multicounter.settings.deaf_haptic';
 
   @override
   SettingsState build() {
@@ -59,6 +69,13 @@ class SettingsNotifier extends Notifier<SettingsState> {
     final accentColor = accentVal != null ? Color(accentVal) : AppTheme.accentGold;
 
     final haptic = prefs.getBool(_keyHaptic) ?? true;
+    final deafHaptic = prefs.getBool(_keyDeafHaptic) ?? true;
+
+    final colorBlindStr = prefs.getString(_keyColorBlindMode);
+    final colorBlindMode = ColorBlindMode.values.firstWhere(
+      (e) => e.name == colorBlindStr,
+      orElse: () => ColorBlindMode.none,
+    );
 
     final typeStr = prefs.getString(_keyDefaultType);
     final defaultType = CounterType.values.firstWhere(
@@ -71,7 +88,21 @@ class SettingsNotifier extends Notifier<SettingsState> {
       accentColor: accentColor,
       hapticFeedback: haptic,
       defaultCounterType: defaultType,
+      colorBlindMode: colorBlindMode,
+      deafHapticAlert: deafHaptic,
     );
+  }
+
+  Future<void> setColorBlindMode(ColorBlindMode mode) async {
+    state = state.copyWith(colorBlindMode: mode);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyColorBlindMode, mode.name);
+  }
+
+  Future<void> setDeafHapticAlert(bool enabled) async {
+    state = state.copyWith(deafHapticAlert: enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyDeafHaptic, enabled);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {

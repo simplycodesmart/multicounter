@@ -180,9 +180,20 @@ class MainActivity : FlutterActivity() {
                                     ?: config.optInt("currentValue")
                             )
 
+                            config.put(
+                                "targetValue",
+                                call.argument<Number>("targetValue")?.toLong()
+                                    ?: config.optLong("targetValue")
+                            )
+
                             val newAccent = call.argument<Number>("accent")?.toLong()?.toInt()
                             if (newAccent != null) {
                                 config.put("accent", newAccent)
+                            }
+
+                            val newEmoji = call.argument<String>("iconEmoji")
+                            if (newEmoji != null) {
+                                config.put("iconEmoji", newEmoji)
                             }
 
                             editor.putString(key, config.toString())
@@ -317,6 +328,212 @@ class MainActivity : FlutterActivity() {
 
                     } catch (error: Exception) {
                         result.error("PIN_WIDGET_FAILED", error.message, null)
+                    }
+                }
+
+                "updateAllWidgetDesigns" -> {
+                    try {
+                        val design = call.argument<Map<String, Any>>("design")
+                        if (design == null) {
+                            result.error("INVALID_ARGS", "Design options are missing", null)
+                            return@setMethodCallHandler
+                        }
+
+                        val manager = AppWidgetManager.getInstance(this)
+                        val provider = ComponentName(
+                            this,
+                            MultiCounterWidgetProvider::class.java
+                        )
+                        val ids = manager.getAppWidgetIds(provider)
+
+                        val prefs = getSharedPreferences(
+                            MultiCounterWidgetProvider.PREFS_NAME,
+                            Context.MODE_PRIVATE
+                        )
+                        val editor = prefs.edit()
+                        var changed = false
+
+                        val targetWidgetId = call.argument<Number>("widgetId")?.toInt()
+                        val targetIds = if (targetWidgetId != null && targetWidgetId in ids) {
+                            intArrayOf(targetWidgetId)
+                        } else {
+                            ids
+                        }
+
+                        for (id in targetIds) {
+                            val key = MultiCounterWidgetProvider.configKey(id)
+                            val raw = prefs.getString(key, null)
+                            val config = if (!raw.isNullOrBlank()) {
+                                try {
+                                    JSONObject(raw)
+                                } catch (_: Exception) {
+                                    JSONObject()
+                                }
+                            } else {
+                                JSONObject()
+                            }
+
+                            // If updating widget's assigned counter directly
+                            val assignCounterId = call.argument<String>("assignCounterId") ?: design["counterId"]?.toString()
+                            val shouldAssignCounter = !assignCounterId.isNullOrBlank() && (
+                                targetWidgetId != null ||
+                                config.optString("counterId").isBlank() ||
+                                config.optString("counterId") == "null"
+                            )
+
+                            if (shouldAssignCounter) {
+                                config.put("counterId", assignCounterId)
+                                if (call.argument<String>("assignTitle") != null) config.put("title", call.argument<String>("assignTitle"))
+                                else if (design.containsKey("title")) config.put("title", design["title"]?.toString() ?: "")
+
+                                if (call.argument<String>("assignType") != null) config.put("type", call.argument<String>("assignType"))
+                                else if (design.containsKey("type")) config.put("type", design["type"]?.toString() ?: "countdown")
+
+                                if (call.argument<Number>("assignTargetEpoch") != null) config.put("targetEpoch", call.argument<Number>("assignTargetEpoch")?.toLong() ?: 0L)
+                                else if (design.containsKey("targetEpoch")) config.put("targetEpoch", (design["targetEpoch"] as? Number)?.toLong() ?: 0L)
+
+                                if (call.argument<Number>("assignCreatedEpoch") != null) config.put("createdEpoch", call.argument<Number>("assignCreatedEpoch")?.toLong() ?: 0L)
+                                else if (design.containsKey("createdEpoch")) config.put("createdEpoch", (design["createdEpoch"] as? Number)?.toLong() ?: 0L)
+
+                                if (call.argument<Number>("assignCurrentValue") != null) config.put("currentValue", call.argument<Number>("assignCurrentValue")?.toInt() ?: 0)
+                                else if (design.containsKey("currentValue")) config.put("currentValue", (design["currentValue"] as? Number)?.toInt() ?: 0)
+
+                                if (call.argument<String>("assignIconEmoji") != null) config.put("iconEmoji", call.argument<String>("assignIconEmoji"))
+                            } else if (config.optString("counterId").isBlank() || config.optString("counterId") == "null") {
+                                // If this widget has no counter assigned yet, use fallback if provided
+                                val fallbackId = call.argument<String>("fallbackCounterId")
+                                if (!fallbackId.isNullOrBlank()) {
+                                    config.put("counterId", fallbackId)
+                                    config.put("title", call.argument<String>("fallbackTitle") ?: "MultiCounter")
+                                    config.put("type", call.argument<String>("fallbackType") ?: "countdown")
+                                    config.put("targetEpoch", call.argument<Number>("fallbackTargetEpoch")?.toLong() ?: 0L)
+                                    config.put("createdEpoch", call.argument<Number>("fallbackCreatedEpoch")?.toLong() ?: 0L)
+                                    config.put("currentValue", call.argument<Number>("fallbackCurrentValue")?.toInt() ?: 0)
+                                    val fallbackAccent = call.argument<Number>("fallbackAccent")?.toLong()?.toInt()
+                                    if (fallbackAccent != null) {
+                                        config.put("accent", fallbackAccent)
+                                    }
+                                    val fallbackEmoji = call.argument<String>("fallbackIconEmoji")
+                                    if (fallbackEmoji != null) {
+                                        config.put("iconEmoji", fallbackEmoji)
+                                    }
+                                }
+                            }
+
+                            // Apply design properties
+                            if (design.containsKey("layout")) {
+                                config.put("layout", design["layout"]?.toString() ?: "Classic")
+                            }
+                            if (design.containsKey("size")) {
+                                config.put("size", design["size"]?.toString() ?: "Medium")
+                            }
+                            if (design.containsKey("background")) {
+                                val bg = (design["background"] as? Number)?.toLong()?.toInt()
+                                if (bg != null) config.put("background", bg)
+                            }
+                            if (design.containsKey("accent")) {
+                                val acc = (design["accent"] as? Number)?.toLong()?.toInt()
+                                if (acc != null) config.put("accent", acc)
+                            }
+                            if (design.containsKey("fontSize")) {
+                                val fs = (design["fontSize"] as? Number)?.toDouble() ?: 25.0
+                                config.put("fontSize", fs)
+                            }
+                            if (design.containsKey("showTitle")) {
+                                config.put("showTitle", design["showTitle"] as? Boolean ?: true)
+                            }
+                            if (design.containsKey("showDays")) {
+                                config.put("showDays", design["showDays"] as? Boolean ?: true)
+                            }
+                            if (design.containsKey("showHours")) {
+                                config.put("showHours", design["showHours"] as? Boolean ?: true)
+                            }
+                            if (design.containsKey("showMinutes")) {
+                                config.put("showMinutes", design["showMinutes"] as? Boolean ?: true)
+                            }
+                            if (design.containsKey("showSeconds")) {
+                                config.put("showSeconds", design["showSeconds"] as? Boolean ?: true)
+                            }
+                            if (design.containsKey("showLabels")) {
+                                config.put("showLabels", design["showLabels"] as? Boolean ?: true)
+                            }
+
+                            editor.putString(key, config.toString())
+                            changed = true
+                        }
+
+                        // Also save to FlutterSharedPreferences so future widgets created from native
+                        // launcher configure activity will use this updated design as their default!
+                        try {
+                            getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("flutter.multicounter.widget_studio.v1", JSONObject(design).toString())
+                                .apply()
+                        } catch (_: Exception) {}
+
+                        if (changed) {
+                            editor.commit()
+
+                            if (targetWidgetId != null && targetWidgetId in ids) {
+                                MultiCounterWidgetProvider.updateWidget(this, targetWidgetId)
+                            } else {
+                                MultiCounterWidgetProvider.updateAllWidgets(this)
+                            }
+                        }
+
+                        result.success(true)
+                    } catch (error: Exception) {
+                        result.error("UPDATE_ALL_DESIGNS_FAILED", error.message, null)
+                    }
+                }
+
+                "getInstalledWidgetsInfo" -> {
+                    try {
+                        val manager = AppWidgetManager.getInstance(this)
+                        val provider = ComponentName(
+                            this,
+                            MultiCounterWidgetProvider::class.java
+                        )
+                        val ids = manager.getAppWidgetIds(provider)
+
+                        val prefs = getSharedPreferences(
+                            MultiCounterWidgetProvider.PREFS_NAME,
+                            Context.MODE_PRIVATE
+                        )
+                        val list = mutableListOf<Map<String, Any?>>()
+                        for (id in ids) {
+                            val key = MultiCounterWidgetProvider.configKey(id)
+                            val raw = prefs.getString(key, null)
+                            val config = if (!raw.isNullOrBlank()) {
+                                try { JSONObject(raw) } catch (_: Exception) { JSONObject() }
+                            } else {
+                                JSONObject()
+                            }
+                            val item = mapOf<String, Any?>(
+                                "widgetId" to id,
+                                "counterId" to config.optString("counterId", ""),
+                                "title" to config.optString("title", "MultiCounter"),
+                                "type" to config.optString("type", "countdown"),
+                                "targetEpoch" to config.optLong("targetEpoch", 0L),
+                                "createdEpoch" to config.optLong("createdEpoch", 0L),
+                                "currentValue" to config.optLong("currentValue", 0L),
+                                "layout" to config.optString("layout", "Classic"),
+                                "size" to config.optString("size", "Medium"),
+                                "accent" to config.opt("accent"),
+                                "background" to config.opt("background"),
+                                "fontSize" to config.optDouble("fontSize", 25.0),
+                                "showTitle" to config.optBoolean("showTitle", true),
+                                "showDays" to config.optBoolean("showDays", true),
+                                "showHours" to config.optBoolean("showHours", true),
+                                "showMinutes" to config.optBoolean("showMinutes", true),
+                                "showSeconds" to config.optBoolean("showSeconds", true),
+                                "showLabels" to config.optBoolean("showLabels", true)
+                            )
+                            list.add(item)
+                        }
+                        result.success(list)
+                    } catch (error: Exception) {
+                        result.error("GET_INSTALLED_INFO_FAILED", error.message, null)
                     }
                 }
 

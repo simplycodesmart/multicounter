@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.os.Bundle
 import android.os.SystemClock
 import android.util.TypedValue
 import android.view.View
@@ -124,22 +125,34 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
                     return@forEach
                 }
 
-                // This implementation uses a 1-minute minimum.
-                val interval = max(
-                    MIN_REFRESH_INTERVAL,
-                    requestedInterval
-                )
-
                 val alarmManager = context.getSystemService(
                     Context.ALARM_SERVICE
                 ) as AlarmManager
 
-                alarmManager.setInexactRepeating(
-                    AlarmManager.ELAPSED_REALTIME,
-                    SystemClock.elapsedRealtime() + interval,
-                    interval,
-                    refreshPendingIntent(context, widgetId)
-                )
+                if (requestedInterval < MINUTE) {
+                    // Sub-minute live updates (e.g. 1 sec live ticker)
+                    val safeInterval = max(1_000L, requestedInterval)
+                    try {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.ELAPSED_REALTIME,
+                            SystemClock.elapsedRealtime() + safeInterval,
+                            refreshPendingIntent(context, widgetId)
+                        )
+                    } catch (_: SecurityException) {
+                        alarmManager.set(
+                            AlarmManager.ELAPSED_REALTIME,
+                            SystemClock.elapsedRealtime() + safeInterval,
+                            refreshPendingIntent(context, widgetId)
+                        )
+                    }
+                } else {
+                    alarmManager.setInexactRepeating(
+                        AlarmManager.ELAPSED_REALTIME,
+                        SystemClock.elapsedRealtime() + requestedInterval,
+                        requestedInterval,
+                        refreshPendingIntent(context, widgetId)
+                    )
+                }
             }
         }
 
@@ -163,6 +176,17 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
     ) {
         if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
             return
+        }
+
+        try {
+            val manager = AppWidgetManager.getInstance(context)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val raw = prefs.getString(configKey(widgetId), null)
+            val config = if (!raw.isNullOrBlank()) JSONObject(raw) else JSONObject()
+            val instance = MultiCounterWidgetProvider()
+            instance.renderWidget(context, manager, widgetId, config)
+        } catch (e: Exception) {
+            android.util.Log.e("MultiCounterWidget", "Direct updateWidget failed", e)
         }
     
         val intent = Intent(
@@ -191,6 +215,18 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             val ids = manager.getAppWidgetIds(provider)
 
             if (ids.isEmpty()) return
+
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val instance = MultiCounterWidgetProvider()
+                ids.forEach { widgetId ->
+                    val raw = prefs.getString(configKey(widgetId), null)
+                    val config = if (!raw.isNullOrBlank()) JSONObject(raw) else JSONObject()
+                    instance.renderWidget(context, manager, widgetId, config)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MultiCounterWidget", "Direct updateAllWidgets failed", e)
+            }
 
             val intent = Intent(
                 context,
@@ -296,6 +332,33 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             
                 if (widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                     refreshWidgetNow(context, widgetId)
+
+                    // If widget uses sub-minute updates, schedule next exact tick
+                    try {
+                        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        val raw = prefs.getString(configKey(widgetId), null)
+                        if (!raw.isNullOrBlank()) {
+                            val config = JSONObject(raw)
+                            val req = config.optLong("refreshIntervalMs", DEFAULT_REFRESH_INTERVAL)
+                            if (req in 1 until MINUTE) {
+                                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                                val safeInterval = max(1_000L, req)
+                                try {
+                                    alarmManager.setExactAndAllowWhileIdle(
+                                        AlarmManager.ELAPSED_REALTIME,
+                                        SystemClock.elapsedRealtime() + safeInterval,
+                                        refreshPendingIntent(context, widgetId)
+                                    )
+                                } catch (_: SecurityException) {
+                                    alarmManager.set(
+                                        AlarmManager.ELAPSED_REALTIME,
+                                        SystemClock.elapsedRealtime() + safeInterval,
+                                        refreshPendingIntent(context, widgetId)
+                                    )
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
                 }
             
                 return
@@ -379,7 +442,17 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         scheduleWidgetRefresh(context)
     }
 
-    private fun renderWidget(
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        refreshWidgetNow(context, appWidgetId)
+    }
+
+    fun renderWidget(
         context: Context,
         manager: AppWidgetManager,
         widgetId: Int,
@@ -402,10 +475,9 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             )
 
         val title = if (hasConfig) {
-            config.optString("title", "MultiCounter")
-                .ifBlank { "MultiCounter" }
+            config.optString("title", "")
         } else {
-            "Open MultiCounter to connect a counter"
+            ""
         }
 
         val type = config.optString("type", "countdown")
@@ -506,31 +578,124 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             else -> false
         }
 
-        // Background and title
+        // Background, event icon, and title
         views.setInt(
             R.id.widget_root,
             "setBackgroundColor",
             background
         )
 
-        views.setTextViewText(
-            R.id.widget_title,
-            title
-        )
+        val iconEmoji = config.optString("iconEmoji", "").ifBlank {
+            when {
+                title.contains("wedding", ignoreCase = true) || title.contains("marry", ignoreCase = true) -> "💍"
+                title.contains("baby", ignoreCase = true) || title.contains("birth", ignoreCase = true) -> "👶"
+                title.contains("work", ignoreCase = true) -> "💼"
+                title.contains("anniversary", ignoreCase = true) -> "🥂"
+                title.contains("birthday", ignoreCase = true) -> "🎂"
+                title.contains("graduat", ignoreCase = true) -> "🎓"
+                title.contains("vacation", ignoreCase = true) || title.contains("trip", ignoreCase = true) -> "🏖️"
+                isTally -> "🎯"
+                isCountUp -> "📈"
+                else -> "⏱️"
+            }
+        }
 
         val readableColor = readableTextColor(background)
 
-        views.setTextColor(
-            R.id.widget_title,
-            readableColor
-        )
+        // Only show header if showTitle is enabled AND counter has a real custom title (not default app name)
+        val isDefaultAppTitle = title.isBlank() || title.equals("MultiCounter", ignoreCase = true)
+        val shouldShowHeader = showTitle && hasConfig && !isDefaultAppTitle
 
         views.setViewVisibility(
-            R.id.widget_title,
-            if (showTitle) View.VISIBLE else View.GONE
+            R.id.widget_header,
+            if (shouldShowHeader) View.VISIBLE else View.GONE
         )
 
-        // Time value styling
+        views.setTextViewText(R.id.widget_title, title)
+        views.setTextColor(R.id.widget_title, readableColor)
+        views.setTextViewText(R.id.widget_event_icon, iconEmoji)
+        views.setViewVisibility(R.id.widget_icon, View.GONE)
+
+        // Status banner: expired countdown or target reached differentiation
+        val targetValue = config.optLong("targetValue", 0L)
+        val now = System.currentTimeMillis()
+        val isExpired = isCountdown && target > 0L && now >= target
+        val isTargetReached = isTally && targetValue > 0L && currentValue >= targetValue
+
+        if (isExpired) {
+            views.setViewVisibility(R.id.widget_status_banner, View.VISIBLE)
+            views.setTextViewText(R.id.widget_status_banner, "EVENT ARRIVED! 🎉")
+            views.setTextColor(R.id.widget_status_banner, accent)
+        } else if (isTargetReached) {
+            views.setViewVisibility(R.id.widget_status_banner, View.VISIBLE)
+            views.setTextViewText(R.id.widget_status_banner, "GOAL REACHED! 🎉 ($currentValue/$targetValue)")
+            views.setTextColor(R.id.widget_status_banner, accent)
+        } else {
+            views.setViewVisibility(R.id.widget_status_banner, View.GONE)
+        }
+
+        // Dynamic responsive font size based on actual launcher widget bounds and orientation
+        val options = manager.getAppWidgetOptions(widgetId)
+        val minW = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 0
+        val maxW = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH) ?: 0
+        val minH = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) ?: 0
+        val maxH = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT) ?: 0
+
+        val isPortrait = context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+
+        val effectiveW = if (isPortrait) {
+            if (minW > 0) minW else (if (maxW > 0) maxW else 240)
+        } else {
+            if (maxW > 0) maxW else (if (minW > 0) minW else 320)
+        }
+
+        val effectiveH = if (isPortrait) {
+            if (maxH > 0) maxH else (if (minH > 0) minH else 120)
+        } else {
+            if (minH > 0) minH else (if (maxH > 0) maxH else 90)
+        }
+
+        val visibleUnitsCount = if (isTally) 1 else (
+            (if (showDays) 1 else 0) +
+            (if (showHours) 1 else 0) +
+            (if (showMinutes) 1 else 0) +
+            (if (showSeconds) 1 else 0)
+        ).coerceAtLeast(1)
+
+        val headerHeight = if (showTitle) 28f else 0f
+        val bannerHeight = if (isExpired || isTargetReached) 22f else 0f
+        val labelHeight = if (showLabels) 14f else 0f
+        val totalVerticalChrome = headerHeight + bannerHeight + labelHeight + (verticalPadding * 2 / density)
+        val availableDigitHeight = (effectiveH - totalVerticalChrome).coerceAtLeast(16f)
+
+        val colWidth = (effectiveW.toFloat() - (horizontalPadding * 2 / density)) / visibleUnitsCount
+        val maxFromHeight = (availableDigitHeight * 0.88f).coerceIn(12f, 72f)
+        val maxFromWidth = if (isTally) {
+            (colWidth * 0.45f).coerceIn(14f, 75f)
+        } else {
+            (colWidth * 0.52f).coerceIn(12f, 64f)
+        }
+
+        val responsiveBaseSp = minOf(maxFromHeight, maxFromWidth)
+        val userScale = (fontSize / 25f) * sizeScale * layoutScale
+        val dynamicSp = (responsiveBaseSp * userScale).coerceIn(12f, 65f)
+
+        // Apply dynamic responsive font size only to main numbers (labels remain static 9sp)
+        val mainNumberIds = if (isTally) {
+            listOf(R.id.widget_tally)
+        } else {
+            listOf(
+                R.id.widget_days,
+                R.id.widget_hours,
+                R.id.widget_minutes,
+                R.id.widget_seconds
+            )
+        }
+        mainNumberIds.forEach { id ->
+            views.setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_SP, dynamicSp)
+        }
+
+        // Main time numbers styling (autoSizeTextType in XML auto-adjusts based on widget size)
         val valueIds = listOf(
             R.id.widget_days,
             R.id.widget_hours,
@@ -540,14 +705,23 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
 
         valueIds.forEach { id ->
             views.setTextColor(id, accent)
-            views.setTextViewTextSize(
-                id,
-                TypedValue.COMPLEX_UNIT_SP,
-                finalFontSize
-            )
         }
 
-        // Label styling
+        // Colons and separator styling in Row 1 (dynamically scales with main digits)
+        val colonSize = (dynamicSp * 0.85f).coerceIn(12f, 52f)
+        val dotSize = (dynamicSp * 0.55f).coerceIn(10f, 26f)
+
+        views.setTextColor(R.id.widget_sep_days, accent)
+        views.setTextViewTextSize(R.id.widget_sep_days, TypedValue.COMPLEX_UNIT_SP, dotSize)
+
+        views.setTextColor(R.id.widget_colon_hm, accent)
+        views.setTextViewTextSize(R.id.widget_colon_hm, TypedValue.COMPLEX_UNIT_SP, colonSize)
+
+        views.setTextColor(R.id.widget_colon_ms, accent)
+        views.setTextViewTextSize(R.id.widget_colon_ms, TypedValue.COMPLEX_UNIT_SP, colonSize)
+
+        // Label styling in Row 2 (scaled proportionally with digits, no spacer interference)
+        val labelSp = (dynamicSp * 0.32f).coerceIn(9f, 13f)
         val labelIds = listOf(
             R.id.widget_days_label,
             R.id.widget_hours_label,
@@ -557,17 +731,13 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
 
         labelIds.forEach { id ->
             views.setTextColor(id, readableColor)
+            views.setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_SP, labelSp)
         }
 
+        // Main tally number styling (autoSizeTextType in XML auto-adjusts based on widget size)
         views.setTextColor(
             R.id.widget_tally,
             accent
-        )
-
-        views.setTextViewTextSize(
-            R.id.widget_tally,
-            TypedValue.COMPLEX_UNIT_SP,
-            fontSize
         )
 
         // Calculate counter duration
@@ -618,26 +788,28 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         val minutesVisible = validTime && showMinutes
         val secondsVisible = validTime && showSeconds
 
+        // Digits visibility
         views.setViewVisibility(
-            R.id.days_group,
+            R.id.widget_days,
             if (daysVisible) View.VISIBLE else View.GONE
         )
 
         views.setViewVisibility(
-            R.id.hours_group,
+            R.id.widget_hours,
             if (hoursVisible) View.VISIBLE else View.GONE
         )
 
         views.setViewVisibility(
-            R.id.minutes_group,
+            R.id.widget_minutes,
             if (minutesVisible) View.VISIBLE else View.GONE
         )
 
         views.setViewVisibility(
-            R.id.seconds_group,
+            R.id.widget_seconds,
             if (secondsVisible) View.VISIBLE else View.GONE
         )
 
+        // Labels visibility
         views.setViewVisibility(
             R.id.widget_days_label,
             if (daysVisible && showLabels) View.VISIBLE else View.GONE
@@ -658,6 +830,38 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             if (secondsVisible && showLabels) View.VISIBLE else View.GONE
         )
 
+        // Colons and Days separator visibility
+        val sepDaysVisible = daysVisible && (hoursVisible || minutesVisible || secondsVisible)
+        val colonHmVisible = hoursVisible && (minutesVisible || secondsVisible)
+        val colonMsVisible = minutesVisible && secondsVisible
+
+        views.setViewVisibility(
+            R.id.widget_sep_days,
+            if (sepDaysVisible) View.VISIBLE else View.GONE
+        )
+        views.setViewVisibility(
+            R.id.widget_sep_days_spacer,
+            if (sepDaysVisible && showLabels) View.INVISIBLE else View.GONE
+        )
+
+        views.setViewVisibility(
+            R.id.widget_colon_hm,
+            if (colonHmVisible) View.VISIBLE else View.GONE
+        )
+        views.setViewVisibility(
+            R.id.widget_colon_hm_spacer,
+            if (colonHmVisible && showLabels) View.INVISIBLE else View.GONE
+        )
+
+        views.setViewVisibility(
+            R.id.widget_colon_ms,
+            if (colonMsVisible) View.VISIBLE else View.GONE
+        )
+        views.setViewVisibility(
+            R.id.widget_colon_ms_spacer,
+            if (colonMsVisible && showLabels) View.INVISIBLE else View.GONE
+        )
+
         val anyTimeUnitVisible =
             daysVisible ||
                 hoursVisible ||
@@ -667,6 +871,11 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         views.setViewVisibility(
             R.id.widget_time_container,
             if (anyTimeUnitVisible) View.VISIBLE else View.GONE
+        )
+
+        views.setViewVisibility(
+            R.id.widget_labels_container,
+            if (anyTimeUnitVisible && showLabels) View.VISIBLE else View.GONE
         )
 
         // Tally counter
@@ -753,6 +962,11 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
     }
 
     private fun readableTextColor(color: Int): Int {
+        // Transparent or semi-transparent background (alpha < 140) needs white text for readability against launchers/wallpapers
+        if (Color.alpha(color) < 140) {
+            return Color.WHITE
+        }
+
         val luminance = (
             0.2126 * Color.red(color) +
                 0.7152 * Color.green(color) +

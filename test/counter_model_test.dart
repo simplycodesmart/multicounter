@@ -96,5 +96,72 @@ void main() {
       expect(restored.colorValue, counter.colorValue);
       expect(restored.description, counter.description);
     });
+
+    test('Repeat interval yearly rollover for anniversaries', () {
+      final pastWeddingDate = DateTime(2024, 6, 15, 10, 0);
+      final weddingCounter = CounterModel(
+        id: 'wedding_1',
+        title: 'Wedding Anniversary',
+        type: CounterType.countdown,
+        createdAt: DateTime(2024, 1, 1),
+        targetDate: pastWeddingDate,
+        colorValue: 0xFFFF70A6,
+        iconCodePoint: 0xe8b5,
+        repeatInterval: CounterRepeatInterval.yearly,
+        enableNotification: true,
+        notificationSound: 'celebration',
+      );
+
+      final nextTarget = weddingCounter.effectiveTargetDate;
+      expect(nextTarget.isAfter(DateTime.now()), isTrue);
+      expect(nextTarget.month, 6);
+      expect(nextTarget.day, 15);
+      expect(weddingCounter.isCompleted, isFalse);
+      expect(weddingCounter.duration.isNegative, isFalse);
+    });
+
+    test('Repeat intervals: hourly, twice daily, and custom hours/days', () {
+      final now = DateTime.now();
+      final pastDate = now.subtract(const Duration(hours: 3));
+
+      final hourlyCounter = CounterModel(
+        id: 'hourly_1',
+        title: 'Drink Water',
+        type: CounterType.countdown,
+        createdAt: now.subtract(const Duration(days: 1)),
+        targetDate: pastDate,
+        colorValue: 0xFF00E5FF,
+        iconCodePoint: 0xe8b5,
+        repeatInterval: CounterRepeatInterval.hourly,
+      );
+
+      final nextHourly = hourlyCounter.effectiveTargetDate;
+      expect(nextHourly.isAfter(now), isTrue);
+
+      final twiceDailyCounter = CounterModel(
+        id: 'twice_1',
+        title: 'Meds',
+        type: CounterType.countdown,
+        createdAt: now.subtract(const Duration(days: 1)),
+        targetDate: now.subtract(const Duration(hours: 14)),
+        colorValue: 0xFF00E676,
+        iconCodePoint: 0xe8b5,
+        repeatInterval: CounterRepeatInterval.twiceDaily,
+      );
+      expect(twiceDailyCounter.effectiveTargetDate.isAfter(now), isTrue);
+
+      final customHoursCounter = CounterModel(
+        id: 'custom_h_1',
+        title: 'Eye Rest',
+        type: CounterType.countdown,
+        createdAt: now.subtract(const Duration(days: 1)),
+        targetDate: now.subtract(const Duration(hours: 5)),
+        colorValue: 0xFFFFD400,
+        iconCodePoint: 0xe8b5,
+        repeatInterval: CounterRepeatInterval.customHours,
+        repeatCustomValue: 2,
+      );
+      expect(customHoursCounter.effectiveTargetDate.isAfter(now), isTrue);
+    });
   });
 }

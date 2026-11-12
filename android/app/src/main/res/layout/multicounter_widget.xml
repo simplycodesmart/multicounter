@@ -8,171 +8,256 @@
     android:padding="12dp"
     android:background="#171717">
 
-    <!-- Counter title -->
-    <TextView
-        android:id="@+id/widget_title"
-        android:layout_width="match_parent"
+    <!-- Counter Header: Event Icon & Title (Hidden if empty or "MultiCounter") -->
+    <LinearLayout
+        android:id="@+id/widget_header"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:text="MultiCounter"
-        android:textColor="#FFFFFF"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:layout_marginBottom="10dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="6dp">
 
-    <!-- Countdown / Count-up values -->
+        <TextView
+            android:id="@+id/widget_event_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:textSize="14sp"
+            android:includeFontPadding="false"
+            android:text="⏱️" />
+
+        <ImageView
+            android:id="@+id/widget_icon"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="6dp"
+            android:src="@mipmap/ic_launcher"
+            android:scaleType="fitCenter"
+            android:visibility="gone"
+            android:contentDescription="MultiCounter Icon" />
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Status / Goal reached banner for expired countdown or reached tally -->
+    <TextView
+        android:id="@+id/widget_status_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center"
+        android:text="GOAL REACHED! 🎉"
+        android:textColor="#FFFFD400"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="2dp"
+        android:layout_marginBottom="6dp"
+        android:visibility="gone" />
+
+    <!-- Countdown / Count-up values container (Centered as a unit) -->
     <LinearLayout
         android:id="@+id/widget_time_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:weightSum="4">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center">
 
-        <!-- Days -->
+        <!-- Row 1: Digits, Colons, and Dot Separator (100% vertically centered on digits) -->
         <LinearLayout
-            android:id="@+id/days_group"
-            android:layout_width="0dp"
+            android:id="@+id/widget_digits_row"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
+            android:orientation="horizontal"
             android:gravity="center"
-            android:paddingHorizontal="2dp">
+            android:baselineAligned="false">
 
+            <!-- Days Digit -->
             <TextView
                 android:id="@+id/widget_days"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:gravity="center"
                 android:text="0"
                 android:textColor="#FFFFD400"
                 android:textSize="25sp"
                 android:textStyle="bold"
                 android:includeFontPadding="false"
-                android:maxLines="1"
-                android:autoSizeTextType="uniform"
-                android:autoSizeMinTextSize="12sp"
-                android:autoSizeMaxTextSize="48sp" />
+                android:maxLines="1" />
+
+            <!-- Refined Dot Separator between Days and Hours (·) with fixed 12dp width -->
+            <TextView
+                android:id="@+id/widget_sep_days"
+                android:layout_width="12dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:gravity="center"
+                android:text="·"
+                android:textColor="#FFFFD400"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false" />
+
+            <!-- Hours Digit -->
+            <TextView
+                android:id="@+id/widget_hours"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="00"
+                android:textColor="#FFFFD400"
+                android:textSize="25sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:maxLines="1" />
+
+            <!-- Colon between Hours and Minutes (:) with fixed 14dp width -->
+            <TextView
+                android:id="@+id/widget_colon_hm"
+                android:layout_width="14dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:gravity="center"
+                android:text=":"
+                android:textColor="#FFFFD400"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false" />
+
+            <!-- Minutes Digit -->
+            <TextView
+                android:id="@+id/widget_minutes"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="00"
+                android:textColor="#FFFFD400"
+                android:textSize="25sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:maxLines="1" />
+
+            <!-- Colon between Minutes and Seconds (:) with fixed 14dp width -->
+            <TextView
+                android:id="@+id/widget_colon_ms"
+                android:layout_width="14dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:gravity="center"
+                android:text=":"
+                android:textColor="#FFFFD400"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false" />
+
+            <!-- Seconds Digit -->
+            <TextView
+                android:id="@+id/widget_seconds"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="00"
+                android:textColor="#FFFFD400"
+                android:textSize="25sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:maxLines="1" />
+
+        </LinearLayout>
+
+        <!-- Row 2: Sub-labels (DAYS, HRS, MINS, SECS) right underneath numbers with exact matching width spacers -->
+        <LinearLayout
+            android:id="@+id/widget_labels_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:baselineAligned="false">
 
             <TextView
                 android:id="@+id/widget_days_label"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
                 android:text="DAYS"
                 android:textColor="#BFFFFFFF"
                 android:textSize="9sp"
-                android:gravity="center"
                 android:includeFontPadding="false" />
-        </LinearLayout>
 
-        <!-- Hours -->
-        <LinearLayout
-            android:id="@+id/hours_group"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingHorizontal="2dp">
-
+            <!-- Spacer under sep_days matching width -->
             <TextView
-                android:id="@+id/widget_hours"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="00"
-                android:textColor="#FFFFD400"
-                android:textSize="25sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:autoSizeTextType="uniform"
-                android:autoSizeMinTextSize="12sp"
-                android:autoSizeMaxTextSize="48sp" />
+                android:id="@+id/widget_sep_days_spacer"
+                android:layout_width="12dp"
+                android:layout_height="1dp"
+                android:text=""
+                android:visibility="invisible" />
 
             <TextView
                 android:id="@+id/widget_hours_label"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
                 android:text="HRS"
                 android:textColor="#BFFFFFFF"
                 android:textSize="9sp"
-                android:gravity="center"
                 android:includeFontPadding="false" />
-        </LinearLayout>
 
-        <!-- Minutes -->
-        <LinearLayout
-            android:id="@+id/minutes_group"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingHorizontal="2dp">
-
+            <!-- Spacer under colon_hm matching width -->
             <TextView
-                android:id="@+id/widget_minutes"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="00"
-                android:textColor="#FFFFD400"
-                android:textSize="25sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:autoSizeTextType="uniform"
-                android:autoSizeMinTextSize="12sp"
-                android:autoSizeMaxTextSize="48sp" />
+                android:id="@+id/widget_colon_hm_spacer"
+                android:layout_width="14dp"
+                android:layout_height="1dp"
+                android:text=""
+                android:visibility="invisible" />
 
             <TextView
                 android:id="@+id/widget_minutes_label"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
                 android:text="MINS"
                 android:textColor="#BFFFFFFF"
                 android:textSize="9sp"
-                android:gravity="center"
                 android:includeFontPadding="false" />
-        </LinearLayout>
 
-        <!-- Seconds -->
-        <LinearLayout
-            android:id="@+id/seconds_group"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingHorizontal="2dp">
-
+            <!-- Spacer under colon_ms matching width -->
             <TextView
-                android:id="@+id/widget_seconds"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="00"
-                android:textColor="#FFFFD400"
-                android:textSize="25sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:autoSizeTextType="uniform"
-                android:autoSizeMinTextSize="12sp"
-                android:autoSizeMaxTextSize="48sp" />
+                android:id="@+id/widget_colon_ms_spacer"
+                android:layout_width="14dp"
+                android:layout_height="1dp"
+                android:text=""
+                android:visibility="invisible" />
 
             <TextView
                 android:id="@+id/widget_seconds_label"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
                 android:text="SECS"
                 android:textColor="#BFFFFFFF"
                 android:textSize="9sp"
-                android:gravity="center"
                 android:includeFontPadding="false" />
+
         </LinearLayout>
 
     </LinearLayout>
@@ -181,7 +266,8 @@
     <TextView
         android:id="@+id/widget_tally"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:gravity="center"
         android:text="0"
         android:textColor="#FFFFD400"

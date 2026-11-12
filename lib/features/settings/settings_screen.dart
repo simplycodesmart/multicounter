@@ -352,6 +352,89 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
+          // Section: Accessibility & Inclusivity
+          _sectionHeader('ACCESSIBILITY & INCLUSIVITY'),
+          Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.remove_red_eye_rounded, color: Colors.amberAccent),
+                  title: const Text('Color Vision Mode', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    settings.colorBlindMode.description,
+                    style: const TextStyle(fontSize: 12, color: Colors.white60),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: DropdownButtonFormField<ColorBlindMode>(
+                    initialValue: settings.colorBlindMode,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.palette_outlined),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: ColorBlindMode.values.map((mode) {
+                      return DropdownMenuItem(
+                        value: mode,
+                        child: Text(mode.label),
+                      );
+                    }).toList(),
+                    onChanged: (mode) {
+                      if (mode != null) {
+                        settingsNotifier.setColorBlindMode(mode);
+                        // Also set accent color from mode's recommended palette if not already
+                        final safeColors = AppTheme.getColorsForMode(mode);
+                        if (!safeColors.contains(settings.accentColor)) {
+                          settingsNotifier.setAccentColor(safeColors.first);
+                        }
+                      }
+                    },
+                  ),
+                ),
+                const Divider(height: 1),
+                SwitchListTile.adaptive(
+                  secondary: const Icon(Icons.hearing_disabled_rounded, color: Colors.cyanAccent),
+                  title: const Text('Deaf & Hard-of-Hearing Tactile Alerts', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Multi-pulse strong vibration pattern for alarms, reached goals, and timers'),
+                  value: settings.deafHapticAlert,
+                  onChanged: (val) => settingsNotifier.setDeafHapticAlert(val),
+                ),
+                if (settings.deafHapticAlert)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.heavyImpact();
+                        Future.delayed(const Duration(milliseconds: 250), () => HapticFeedback.heavyImpact());
+                        Future.delayed(const Duration(milliseconds: 500), () => HapticFeedback.vibrate());
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Testing tactile vibration pattern (haptic pulses for deaf accessibility)'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.vibration_rounded, size: 16),
+                      label: const Text('Test Tactile Alert Vibration'),
+                      style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                    ),
+                  ),
+                const Divider(height: 1),
+                const ListTile(
+                  leading: Icon(Icons.record_voice_over_rounded, color: Colors.greenAccent),
+                  title: Text('Screen Reader & TalkBack Ready', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    'Full semantic descriptions for all count values, progress bars, and status banners',
+                    style: TextStyle(fontSize: 12, color: Colors.white60),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // Section: Home Screen Widgets
           _sectionHeader('HOME SCREEN WIDGETS'),
           Card(
@@ -445,9 +528,17 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('MultiCounter'),
-                  subtitle: const Text('Version 1.0.0 • Simple, highly customizable multi-counter with home screen widgets'),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/images/app_logo.png',
+                      width: 36,
+                      height: 36,
+                      errorBuilder: (_, _, _) => const Icon(Icons.info_outline),
+                    ),
+                  ),
+                  title: const Text('MultiCounter', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Version 1.0.1 • Fast, privacy-first multi-timer & home widgets'),
                 ),
               ],
             ),
