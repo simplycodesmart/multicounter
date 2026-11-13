@@ -14,6 +14,7 @@ class CounterCard extends StatelessWidget {
     this.onDecrement,
     this.onReset,
     this.onAddWidget,
+    this.onDuplicate,
     this.haptic = true,
   });
 
@@ -24,11 +25,12 @@ class CounterCard extends StatelessWidget {
   final VoidCallback? onDecrement;
   final VoidCallback? onReset;
   final VoidCallback? onAddWidget;
+  final VoidCallback? onDuplicate;
   final bool haptic;
 
   void _vibrate() {
     if (haptic) {
-      HapticFeedback.selectionClick();
+      HapticFeedback.mediumImpact();
     }
   }
 
@@ -70,12 +72,15 @@ class CounterCard extends StatelessWidget {
         ? '${counter.currentValue}'
         : '${d.inDays}d  ${d.inHours.remainder(24).toString().padLeft(2, '0')}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
+    return Semantics(
+      label: '${counter.title}, ${counter.type.name} counter. ${counter.type == CounterType.tally ? "Count: ${counter.currentValue}" : "Time: $timeString"}. ${isDone ? "Completed!" : ""}',
+      button: true,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,6 +131,40 @@ class CounterCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (counter.repeatInterval != CounterRepeatInterval.none) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueAccent.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  counter.repeatInterval.name.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.blueAccent,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (counter.enableNotification) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.greenAccent.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_active,
+                                  size: 10,
+                                  color: Colors.greenAccent,
+                                ),
+                              ),
+                            ],
                             if (isDone) ...[
                               const SizedBox(width: 6),
                               Container(
@@ -150,6 +189,15 @@ class CounterCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onDuplicate != null)
+                    IconButton(
+                      tooltip: 'Duplicate counter',
+                      onPressed: () {
+                        _vibrate();
+                        onDuplicate?.call();
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 19),
+                    ),
                   if (onAddWidget != null)
                     IconButton(
                       tooltip: 'Add widget to Home screen',
@@ -290,6 +338,7 @@ class CounterCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

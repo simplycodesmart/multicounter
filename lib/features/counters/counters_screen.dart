@@ -204,6 +204,36 @@ class _CountersScreenState extends ConsumerState<CountersScreen> {
                               counter: counter,
                               haptic: settings.hapticFeedback,
                               onAddWidget: () async {
+                                final isInstalled = await HomeScreenWidgetService.isCounterWidgetInstalled(counter.id);
+                                if (isInstalled && context.mounted) {
+                                  final proceed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Row(
+                                        children: [
+                                          Icon(Icons.widgets_rounded, color: Colors.amberAccent),
+                                          SizedBox(width: 8),
+                                          Text('Widget Already Placed'),
+                                        ],
+                                      ),
+                                      content: Text(
+                                        'A home screen widget for "${counter.title}" is already active on your launcher.\n\nDo you want to add another (duplicate) widget for this counter?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(ctx).pop(false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        FilledButton.icon(
+                                          onPressed: () => Navigator.of(ctx).pop(true),
+                                          icon: const Icon(Icons.copy_all_rounded, size: 16),
+                                          label: const Text('Duplicate Widget'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (proceed != true) return;
+                                }
                                 final added = await HomeScreenWidgetService
                                     .requestPinWidget(counter);
                                 if (!context.mounted) return;
@@ -219,6 +249,22 @@ class _CountersScreenState extends ConsumerState<CountersScreen> {
                               },
                               onTap: () =>
                                   context.push('/counter/${counter.id}/edit'),
+                              onDuplicate: () async {
+                                final clone = await ref
+                                    .read(countersProvider.notifier)
+                                    .duplicateCounter(counter.id);
+                                if (clone != null && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Duplicated as "${clone.title}"'),
+                                      action: SnackBarAction(
+                                        label: 'Edit',
+                                        onPressed: () => context.push('/counter/${clone.id}/edit'),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
                               onDelete: () => ref
                                   .read(countersProvider.notifier)
                                   .removeCounter(counter.id),

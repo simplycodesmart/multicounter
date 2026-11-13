@@ -13,6 +13,28 @@ class HomeScreenWidgetService {
       MethodChannel('multicounter/widget_config');
   static const String _designKey = 'multicounter.widget_studio.v1';
   static String widgetDesignKey(int id) => '$_designKey.widget.$id';
+  static String counterDesignKey(String counterId) => '$_designKey.counter.$counterId';
+
+  static Map<String, dynamic> defaultDesignForCounter(CounterModel counter) => {
+    'layout': 'Classic',
+    'size': 'Medium',
+    'background': 0xFF171717,
+    'accent': counter.colorValue.toSigned(32),
+    'fontSize': 25.0,
+    'showDays': true,
+    'showHours': true,
+    'showMinutes': true,
+    'showSeconds': true,
+    'showLabels': true,
+    'showTitle': true,
+    'refreshIntervalMs': 60000,
+  };
+
+  /// Checks whether a widget is already placed on the launcher for this counter ID.
+  static Future<bool> isCounterWidgetInstalled(String counterId) async {
+    final installed = await getInstalledWidgetsInfo();
+    return installed.any((w) => w['counterId']?.toString() == counterId);
+  }
 
   static Future<List<int>> getInstalledWidgetIds() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return [];
@@ -21,6 +43,23 @@ class HomeScreenWidgetService {
       return ids?.map((id) => (id as num).toInt()).toList() ?? [];
     } catch (error) {
       debugPrint('Could not get widget IDs: $error');
+      return [];
+    }
+  }
+
+  /// Returns detailed information for each installed widget on the launcher.
+  static Future<List<Map<String, dynamic>>> getInstalledWidgetsInfo() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return [];
+    try {
+      final list = await _channel.invokeMethod<List<dynamic>>(
+        'getInstalledWidgetsInfo',
+      );
+      if (list == null) return [];
+      return list
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+    } catch (error) {
+      debugPrint('Could not get installed widgets info: $error');
       return [];
     }
   }
@@ -36,19 +75,18 @@ class HomeScreenWidgetService {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_designKey);
+      final rawCounterDesign = prefs.getString(counterDesignKey(counter.id));
 
-      final savedDesign = raw == null
-          ? <String, dynamic>{}
-          : jsonDecode(raw) as Map<String, dynamic>;
+      final baseDesign = rawCounterDesign != null
+          ? (jsonDecode(rawCounterDesign) as Map<String, dynamic>)
+          : defaultDesignForCounter(counter);
 
       final design = <String, dynamic>{
-        ...savedDesign,
+        ...baseDesign,
         ...?customDesign,
       };
 
-      // If pinning directly from a counter card without custom styling,
-      // respect that counter's own theme color instead of global studio default!
+      // If pinning directly without explicit custom accent, respect counter's own color
       final useCounterColor =
           customDesign == null || !customDesign.containsKey('accent');
 
@@ -114,7 +152,9 @@ class HomeScreenWidgetService {
         'targetEpoch': counter.targetDate?.millisecondsSinceEpoch ?? 0,
         'createdEpoch': counter.effectiveStartDate.millisecondsSinceEpoch,
         'currentValue': counter.currentValue,
+        'targetValue': counter.targetValue ?? 0,
         'accent': counter.colorValue.toSigned(32),
+        'iconEmoji': counter.eventEmoji,
       });
     } catch (error, stackTrace) {
       debugPrint('Counter widget refresh failed: $error');
@@ -130,49 +170,71 @@ class HomeScreenWidgetService {
     }
   }
 
+  /// Updates all installed widgets with the given design options.
+  /// If [widgetId] is provided, updates only that widget.
+  /// If [assignCounter] is provided, assigns that counter directly to the widget.
+  /// If [fallbackCounter] is provided, any widget without a counter assigned will be bound to it.
+  static Future<bool> updateAllWidgetDesigns({
+    required Map<String, dynamic> design,
+    int? widgetId,
+    CounterModel? assignCounter,
+    CounterModel? fallbackCounter,
+  }) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final args = <String, dynamic>{
+        'design': design,
+      };
+      if (widgetId != null) {
+        args['widgetId'] = widgetId;
+      }
+      if (assignCounter != null) {
+        args['assignCounterId'] = assignCounter.id;
+        args['assignTitle'] = assignCounter.title;
+        args['assignType'] = assignCounter.type.name;
+        args['assignTargetEpoch'] =
+            assignCounter.targetDate?.millisecondsSinceEpoch ?? 0;
+        args['assignCreatedEpoch'] =
+            assignCounter.effectiveStartDate.millisecondsSinceEpoch;
+        args['assignCurrentValue'] = assignCounter.currentValue;
+        args['assignIconEmoji'] = assignCounter.eventEmoji;
+      }
+      if (fallbackCounter != null) {
+        args['fallbackCounterId'] = fallbackCounter.id;
+        args['fallbackTitle'] = fallbackCounter.title;
+        args['fallbackType'] = fallbackCounter.type.name;
+        args['fallbackTargetEpoch'] =
+            fallbackCounter.targetDate?.millisecondsSinceEpoch ?? 0;
+        args['fallbackCreatedEpoch'] =
+            fallbackCounter.effectiveStartDate.millisecondsSinceEpoch;
+        args['fallbackCurrentValue'] = fallbackCounter.currentValue;
+        args['fallbackAccent'] = fallbackCounter.colorValue.toSigned(32);
+        args['fallbackIconEmoji'] = fallbackCounter.eventEmoji;
+      }
+
+      final result = await _channel.invokeMethod<bool>(
+        'updateAllWidgetDesigns',
+        args,
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_designKey, jsonEncode(design));
+
+      return result ?? false;
+    } catch (error, stackTrace) {
+      debugPrint('updateAllWidgetDesigns failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return false;
+    }
+  }
+
   /// Applies a newly saved Widget Studio design to all currently installed widgets.
   static Future<void> updateAllInstalledWidgetDesigns(
     Map<String, dynamic> design,
     List<CounterModel> counters,
   ) async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
-    try {
-      final widgetIds = await getInstalledWidgetIds();
-      final prefs = await SharedPreferences.getInstance();
-
-      for (final widgetId in widgetIds) {
-        final key = widgetDesignKey(widgetId);
-        final raw = prefs.getString(key);
-        String? counterId;
-        if (raw != null) {
-          try {
-            final existing = jsonDecode(raw) as Map<String, dynamic>;
-            counterId = existing['counterId'] as String?;
-          } catch (_) {}
-        }
-
-        CounterModel? matchingCounter;
-        if (counterId != null) {
-          for (final c in counters) {
-            if (c.id == counterId) {
-              matchingCounter = c;
-              break;
-            }
-          }
-        }
-        matchingCounter ??= counters.isNotEmpty ? counters.first : null;
-
-        if (matchingCounter != null) {
-          await sync(
-            widgetId: widgetId,
-            counter: matchingCounter,
-            design: design,
-          );
-        }
-      }
-    } catch (error) {
-      debugPrint('Failed to update installed widget designs: $error');
-    }
+    final fallback = counters.isNotEmpty ? counters.first : null;
+    await updateAllWidgetDesigns(design: design, fallbackCounter: fallback);
   }
 
   static Map<String, dynamic> _makeConfig(
@@ -190,10 +252,12 @@ class HomeScreenWidgetService {
     return <String, dynamic>{
       'title': counter.title,
       'counterId': counter.id,
+      'iconEmoji': counter.eventEmoji,
       'type': counter.type.name,
       'targetEpoch': counter.targetDate?.millisecondsSinceEpoch ?? 0,
       'createdEpoch': counter.effectiveStartDate.millisecondsSinceEpoch,
       'currentValue': counter.currentValue,
+      'targetValue': counter.targetValue ?? 0,
       'refreshIntervalMs':
           (design['refreshIntervalMs'] as num?)?.toInt() ?? 60000,
       'background': rawBackground.toSigned(32),
