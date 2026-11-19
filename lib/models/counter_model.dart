@@ -59,6 +59,14 @@ class CounterModel {
     this.enableNotification = false,
     this.notificationTiming = 'atEvent',
     this.notificationSound = 'default',
+    this.hasTargetTime = true,
+    this.showYears = false,
+    this.showMonths = false,
+    this.showWeeks = false,
+    this.showDays = true,
+    this.showHours = true,
+    this.showMinutes = true,
+    this.showSeconds = true,
   });
 
   final String id;
@@ -68,6 +76,7 @@ class CounterModel {
   final DateTime createdAt;
   final DateTime? startDate;
   final DateTime? targetDate;
+  final bool hasTargetTime;
   final int currentValue;
   final int colorValue;
   final int iconCodePoint;
@@ -78,6 +87,13 @@ class CounterModel {
   final bool enableNotification;
   final String notificationTiming;
   final String notificationSound;
+  final bool showYears;
+  final bool showMonths;
+  final bool showWeeks;
+  final bool showDays;
+  final bool showHours;
+  final bool showMinutes;
+  final bool showSeconds;
 
   Color get color => Color(colorValue);
   IconData get icon =>
@@ -86,6 +102,7 @@ class CounterModel {
 
   String get eventEmoji {
     final lowerTitle = title.toLowerCase();
+    if (lowerTitle.contains('pregnant') || lowerTitle.contains('pregnancy') || lowerTitle.contains('trimester')) return '🤰';
     if (lowerTitle.contains('wedding') || lowerTitle.contains('marry') || lowerTitle.contains('marriage')) return '💍';
     if (lowerTitle.contains('baby') || lowerTitle.contains('birth') || lowerTitle.contains('due date')) return '👶';
     if (lowerTitle.contains('work') && lowerTitle.contains('anniversary')) return '💼';
@@ -152,9 +169,12 @@ class CounterModel {
 
   DateTime get effectiveTargetDate {
     if (targetDate == null) return DateTime.now();
-    if (repeatInterval == CounterRepeatInterval.none) return targetDate!;
+    DateTime current = targetDate!;
+    if (!hasTargetTime) {
+      current = DateTime(current.year, current.month, current.day);
+    }
+    if (repeatInterval == CounterRepeatInterval.none) return current;
 
-    final current = targetDate!;
     final now = DateTime.now();
     if (!now.isAfter(current)) return current;
 
@@ -212,6 +232,12 @@ class CounterModel {
     if (type == CounterType.countdown) {
       if (targetDate == null) return Duration.zero;
       final target = effectiveTargetDate;
+      if (!hasTargetTime) {
+        final today = DateTime(now.year, now.month, now.day);
+        final targetDay = DateTime(target.year, target.month, target.day);
+        final difference = targetDay.difference(today);
+        return difference.isNegative ? Duration.zero : difference;
+      }
       final difference = target.difference(now);
       return difference.isNegative ? Duration.zero : difference;
     }
@@ -226,6 +252,11 @@ class CounterModel {
     if (type == CounterType.countdown) {
       if (targetDate == null) return false;
       if (repeatInterval != CounterRepeatInterval.none) return false;
+      if (!hasTargetTime) {
+        final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        final targetDay = DateTime(targetDate!.year, targetDate!.month, targetDate!.day);
+        return today.isAfter(targetDay);
+      }
       return DateTime.now().isAfter(targetDate!);
     }
     if (type == CounterType.tally && targetValue != null && targetValue! > 0) {
@@ -237,9 +268,21 @@ class CounterModel {
   double? get progress {
     if (type == CounterType.countdown && targetDate != null) {
       final target = effectiveTargetDate;
+      final now = DateTime.now();
+      if (!hasTargetTime) {
+        final start = DateTime(createdAt.year, createdAt.month, createdAt.day);
+        final today = DateTime(now.year, now.month, now.day);
+        final end = DateTime(target.year, target.month, target.day);
+        final total = end.difference(start).inDays;
+        if (total <= 0) return 1.0;
+        final remaining = end.difference(today).inDays;
+        if (remaining <= 0) return 1.0;
+        final done = total - remaining;
+        return (done / total).clamp(0.0, 1.0);
+      }
       final total = target.difference(createdAt).inSeconds;
       if (total <= 0) return 1.0;
-      final remaining = target.difference(DateTime.now()).inSeconds;
+      final remaining = target.difference(now).inSeconds;
       if (remaining <= 0) return 1.0;
       final done = total - remaining;
       return (done / total).clamp(0.0, 1.0);
@@ -250,12 +293,164 @@ class CounterModel {
     return null;
   }
 
+  static DateTime _addYears(DateTime dt, int y) {
+    final targetYear = dt.year + y;
+    final isLeapDay = dt.month == 2 && dt.day == 29;
+    final isLeapYear = (targetYear % 4 == 0 && targetYear % 100 != 0) || (targetYear % 400 == 0);
+    final day = (isLeapDay && !isLeapYear) ? 28 : dt.day;
+    return DateTime(targetYear, dt.month, day, dt.hour, dt.minute, dt.second, dt.millisecond);
+  }
+
+  static DateTime _addMonths(DateTime dt, int m) {
+    final totalMonths = dt.month - 1 + m;
+    final targetYear = dt.year + (totalMonths ~/ 12);
+    final targetMonth = (totalMonths % 12) + 1;
+    final daysInMonth = DateTime(targetYear, targetMonth + 1, 0).day;
+    final day = dt.day > daysInMonth ? daysInMonth : dt.day;
+    return DateTime(targetYear, targetMonth, day, dt.hour, dt.minute, dt.second, dt.millisecond);
+  }
+
+  CounterBreakdown calculateBreakdown({
+    DateTime? at,
+    bool? overrideYears,
+    bool? overrideMonths,
+    bool? overrideWeeks,
+    bool? overrideDays,
+    bool? overrideHours,
+    bool? overrideMinutes,
+    bool? overrideSeconds,
+  }) {
+    final useYears = overrideYears ?? showYears;
+    final useMonths = overrideMonths ?? showMonths;
+    final useWeeks = overrideWeeks ?? showWeeks;
+    final useDays = overrideDays ?? showDays;
+    final useHours = overrideHours ?? showHours;
+    final useMinutes = overrideMinutes ?? showMinutes;
+    final useSeconds = overrideSeconds ?? showSeconds;
+
+    final now = at ?? DateTime.now();
+
+    DateTime start;
+    DateTime end;
+
+    if (type == CounterType.countdown) {
+      final target = effectiveTargetDate;
+      if (!hasTargetTime) {
+        final today = DateTime(now.year, now.month, now.day);
+        final targetDay = DateTime(target.year, target.month, target.day);
+        if (today.isAfter(targetDay)) {
+          return const CounterBreakdown();
+        }
+        start = today;
+        end = targetDay;
+      } else {
+        if (now.isAfter(target)) {
+          return const CounterBreakdown();
+        }
+        start = now;
+        end = target;
+      }
+    } else if (type == CounterType.countUp) {
+      final startPt = effectiveStartDate;
+      if (startPt.isAfter(now)) {
+        return const CounterBreakdown();
+      }
+      start = startPt;
+      end = now;
+    } else {
+      return const CounterBreakdown();
+    }
+
+    var cursor = start;
+    int years = 0;
+    int months = 0;
+    int weeks = 0;
+    int days = 0;
+    int hours = 0;
+    int minutes = 0;
+    int seconds = 0;
+
+    // 1. Years
+    if (useYears) {
+      int y = 0;
+      while (true) {
+        final next = _addYears(cursor, y + 1);
+        if (next.isAfter(end)) break;
+        y++;
+      }
+      if (y > 0) {
+        years = y;
+        cursor = _addYears(cursor, y);
+      }
+    }
+
+    // 2. Months
+    if (useMonths) {
+      int m = 0;
+      while (true) {
+        final next = _addMonths(cursor, m + 1);
+        if (next.isAfter(end)) break;
+        m++;
+      }
+      if (m > 0) {
+        months = m;
+        cursor = _addMonths(cursor, m);
+      }
+    }
+
+    // 3. Weeks
+    final remDays = end.difference(cursor).inDays;
+    if (useWeeks) {
+      final w = remDays ~/ 7;
+      weeks = w;
+      cursor = cursor.add(Duration(days: w * 7));
+    }
+
+    // 4. Days
+    if (useDays) {
+      final d = end.difference(cursor).inDays;
+      days = d;
+      cursor = cursor.add(Duration(days: d));
+    }
+
+    // 5. Hours (only if countdown has target time, or for count-up)
+    if (useHours && (type != CounterType.countdown || hasTargetTime)) {
+      final h = end.difference(cursor).inHours;
+      hours = h;
+      cursor = cursor.add(Duration(hours: h));
+    }
+
+    // 6. Minutes (only if countdown has target time, or for count-up)
+    if (useMinutes && (type != CounterType.countdown || hasTargetTime)) {
+      final min = end.difference(cursor).inMinutes;
+      minutes = min;
+      cursor = cursor.add(Duration(minutes: min));
+    }
+
+    // 7. Seconds (only if countdown has target time, or for count-up)
+    if (useSeconds && (type != CounterType.countdown || hasTargetTime)) {
+      final s = end.difference(cursor).inSeconds;
+      seconds = s;
+    }
+
+    return CounterBreakdown(
+      years: years,
+      months: months,
+      weeks: weeks,
+      days: days,
+      hours: hours,
+      minutes: minutes,
+      seconds: seconds,
+    );
+  }
+
   CounterModel copyWith({
     String? title,
     CounterType? type,
     DateTime? createdAt,
     DateTime? startDate,
     DateTime? targetDate,
+    bool? hasTargetTime,
     int? currentValue,
     int? colorValue,
     int? iconCodePoint,
@@ -268,6 +463,13 @@ class CounterModel {
     bool? enableNotification,
     String? notificationTiming,
     String? notificationSound,
+    bool? showYears,
+    bool? showMonths,
+    bool? showWeeks,
+    bool? showDays,
+    bool? showHours,
+    bool? showMinutes,
+    bool? showSeconds,
   }) {
     return CounterModel(
       id: id,
@@ -276,6 +478,7 @@ class CounterModel {
       createdAt: createdAt ?? this.createdAt,
       startDate: startDate ?? this.startDate,
       targetDate: targetDate ?? this.targetDate,
+      hasTargetTime: hasTargetTime ?? this.hasTargetTime,
       currentValue: currentValue ?? this.currentValue,
       colorValue: colorValue ?? this.colorValue,
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
@@ -287,6 +490,13 @@ class CounterModel {
       enableNotification: enableNotification ?? this.enableNotification,
       notificationTiming: notificationTiming ?? this.notificationTiming,
       notificationSound: notificationSound ?? this.notificationSound,
+      showYears: showYears ?? this.showYears,
+      showMonths: showMonths ?? this.showMonths,
+      showWeeks: showWeeks ?? this.showWeeks,
+      showDays: showDays ?? this.showDays,
+      showHours: showHours ?? this.showHours,
+      showMinutes: showMinutes ?? this.showMinutes,
+      showSeconds: showSeconds ?? this.showSeconds,
     );
   }
 
@@ -297,6 +507,7 @@ class CounterModel {
     'createdAt': createdAt.toIso8601String(),
     'startDate': startDate?.toIso8601String(),
     'targetDate': targetDate?.toIso8601String(),
+    'hasTargetTime': hasTargetTime,
     'currentValue': currentValue,
     'colorValue': colorValue,
     'iconCodePoint': iconCodePoint,
@@ -308,9 +519,19 @@ class CounterModel {
     'enableNotification': enableNotification,
     'notificationTiming': notificationTiming,
     'notificationSound': notificationSound,
+    'showYears': showYears,
+    'showMonths': showMonths,
+    'showWeeks': showWeeks,
+    'showDays': showDays,
+    'showHours': showHours,
+    'showMinutes': showMinutes,
+    'showSeconds': showSeconds,
   };
 
   factory CounterModel.fromJson(Map<String, dynamic> json) {
+    final targetDate = json['targetDate'] == null
+        ? null
+        : DateTime.tryParse(json['targetDate'] as String);
     return CounterModel(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -322,9 +543,11 @@ class CounterModel {
       startDate: json['startDate'] == null
           ? null
           : DateTime.tryParse(json['startDate'] as String),
-      targetDate: json['targetDate'] == null
-          ? null
-          : DateTime.tryParse(json['targetDate'] as String),
+      targetDate: targetDate,
+      hasTargetTime: json['hasTargetTime'] as bool? ??
+          (targetDate != null
+              ? (targetDate.hour != 0 || targetDate.minute != 0 || targetDate.second != 0)
+              : false),
       currentValue: (json['currentValue'] as num?)?.toInt() ?? 0,
       colorValue: (json['colorValue'] as num?)?.toInt() ?? 0xFFFFD400,
       iconCodePoint: (json['iconCodePoint'] as num?)?.toInt() ?? 0xe8b5,
@@ -339,6 +562,33 @@ class CounterModel {
       enableNotification: json['enableNotification'] as bool? ?? false,
       notificationTiming: json['notificationTiming'] as String? ?? 'atEvent',
       notificationSound: json['notificationSound'] as String? ?? 'default',
+      showYears: json['showYears'] as bool? ?? false,
+      showMonths: json['showMonths'] as bool? ?? false,
+      showWeeks: json['showWeeks'] as bool? ?? false,
+      showDays: json['showDays'] as bool? ?? true,
+      showHours: json['showHours'] as bool? ?? true,
+      showMinutes: json['showMinutes'] as bool? ?? true,
+      showSeconds: json['showSeconds'] as bool? ?? true,
     );
   }
+}
+
+class CounterBreakdown {
+  final int years;
+  final int months;
+  final int weeks;
+  final int days;
+  final int hours;
+  final int minutes;
+  final int seconds;
+
+  const CounterBreakdown({
+    this.years = 0,
+    this.months = 0,
+    this.weeks = 0,
+    this.days = 0,
+    this.hours = 0,
+    this.minutes = 0,
+    this.seconds = 0,
+  });
 }

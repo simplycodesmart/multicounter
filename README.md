@@ -51,9 +51,18 @@ Most countdown and counter apps are either cluttered with intrusive advertisemen
 ## ✨ Features
 
 ### ⏳ 1. Precision Countdown Timers
-- 🎯 **Live Event Tracking**: Real-time ticker counting down days, hours, minutes, and seconds.
+- 🎯 **Live Event Tracking**: Real-time ticker counting down years, months, weeks, days, hours, minutes, and seconds.
+- 🗓️ **Smart Unit Cascading**:
+  - Choose any combination of **Years, Months, Weeks, Days, Hours, Minutes, and Seconds**.
+  - **Smart Cascade Math**: Automatically converts unselected upper units into active lower units (e.g., a 2-year countdown displays as **24 Months** if years are toggled off, **104 Weeks** if months are toggled off, or **730 Days** if weeks are toggled off).
+- 🕒 **Optional Target Time (Date-Only Events)**:
+  - Time is completely optional! Toggle off target time for date-only events such as pregnancy week/day tracking, baby due dates, birthdays, anniversaries, and vacations.
+  - Eliminates forced arbitrary hours/minutes and prevents awkward trailing `00:00:00` or zeroed time units.
+  - On the event day, the counter celebrates with `"TODAY IS THE DAY! 🎉"` (0 days remaining) before expiring the next day.
+- 🔢 **4-Digit High-Capacity Display**:
+  - Supports values up to 4 digits (e.g. `104 WKS`, `730 DAYS`, `9999`) with dynamic auto-adjusted font sizing to guarantee zero truncation across launcher widgets and in-app views.
 - 💍 **Smart Event Presets**: Automatic category icons and themes for:
-  - 💍 **Weddings** • 👶 **Baby Births & Due Dates** • 🥂 **Anniversaries** • 💼 **Work Milestones**
+  - 💍 **Weddings** • 👶 **Baby Births & Due Dates (Weeks & Days)** • 🥂 **Anniversaries** • 💼 **Work Milestones**
   - 🎂 **Birthdays** • 🏖️ **Vacations & Trips** • 🎓 **Graduations** • 🚀 **Product Launches**
 - 🔁 **Custom Recurring Intervals & Rollover**:
   - `Every Hour` • `Twice Daily (Every 12h)` • `Thrice Daily (Every 8h)` • `Custom Hours`
@@ -61,6 +70,7 @@ Most countdown and counter apps are either cluttered with intrusive advertisemen
   - Automatically advances to the next cycle once an event arrives.
 - 🔔 **Alarms & Reminders**:
   - Reminders (*at event, 1h before, 1 day before, 1 week before*) with celebratory chimes or gentle tactile vibration.
+  - Date-only events default to gentle morning reminders (9:00 AM) rather than midnight alarms.
 - 📋 **Duplicate Counter & Collision Guard**:
   - Duplicate any existing counter with one tap (`Title (Copy)`).
   - Built-in validator prevents duplicate counter titles and accidental double-clicks.
@@ -101,8 +111,12 @@ Customize every aspect of your home screen widgets with a real-time live preview
   - **Classic**: Balanced horizontal layout with unit labels.
   - **Minimal**: Ultra-clean streamlined numbers without clutter.
   - **Bold**: High-impact typography with signature accent bar.
-- 📏 **Proportional Sizes**:
+- 📏 **Proportional Sizes & Multi-Digit Auto-Sizing**:
   - **Small (2x1)** • **Medium (3x2)** • **Large (4x2)**
+  - Dynamic font scaling calculates width bounds for 1 to 4 digits (e.g. `104 WKS`, `730 DAYS`) to prevent layout clipping.
+- 🎛️ **Granular Unit Controls**:
+  - Toggle Years, Months, Weeks, Days, Hours, Minutes, and Seconds individually.
+  - Date-only events automatically conceal empty hour/minute columns, giving maximum space and legibility to date units.
 - 🪟 **Glassmorphism & Opacity**:
   - Choose 100% opaque, 80% frosted glass, 20% dark glass, or **100% transparent** to blend seamlessly with any wallpaper.
 - 🎨 **Per-Counter Design Isolation**:

@@ -200,6 +200,7 @@ class CountersNotifier extends AsyncNotifier<List<CounterModel>> {
       createdAt: DateTime.now(),
       startDate: original.startDate,
       targetDate: original.targetDate,
+      hasTargetTime: original.hasTargetTime,
       currentValue: original.currentValue,
       colorValue: original.colorValue,
       iconCodePoint: original.iconCodePoint,
@@ -211,6 +212,13 @@ class CountersNotifier extends AsyncNotifier<List<CounterModel>> {
       enableNotification: original.enableNotification,
       notificationTiming: original.notificationTiming,
       notificationSound: original.notificationSound,
+      showYears: original.showYears,
+      showMonths: original.showMonths,
+      showWeeks: original.showWeeks,
+      showDays: original.showDays,
+      showHours: original.showHours,
+      showMinutes: original.showMinutes,
+      showSeconds: original.showSeconds,
     );
 
     await addCounter(cloned);

@@ -196,6 +196,31 @@ class MainActivity : FlutterActivity() {
                                 config.put("iconEmoji", newEmoji)
                             }
 
+                            if (call.hasArgument("showYears") && call.argument<Boolean>("showYears") != null) {
+                                config.put("showYears", call.argument<Boolean>("showYears")!!)
+                            }
+                            if (call.hasArgument("showMonths") && call.argument<Boolean>("showMonths") != null) {
+                                config.put("showMonths", call.argument<Boolean>("showMonths")!!)
+                            }
+                            if (call.hasArgument("showWeeks") && call.argument<Boolean>("showWeeks") != null) {
+                                config.put("showWeeks", call.argument<Boolean>("showWeeks")!!)
+                            }
+                            if (call.hasArgument("showDays") && call.argument<Boolean>("showDays") != null) {
+                                config.put("showDays", call.argument<Boolean>("showDays")!!)
+                            }
+                            if (call.hasArgument("showHours") && call.argument<Boolean>("showHours") != null) {
+                                config.put("showHours", call.argument<Boolean>("showHours")!!)
+                            }
+                            if (call.hasArgument("showMinutes") && call.argument<Boolean>("showMinutes") != null) {
+                                config.put("showMinutes", call.argument<Boolean>("showMinutes")!!)
+                            }
+                            if (call.hasArgument("showSeconds") && call.argument<Boolean>("showSeconds") != null) {
+                                config.put("showSeconds", call.argument<Boolean>("showSeconds")!!)
+                            }
+                            if (call.hasArgument("hasTargetTime") && call.argument<Boolean>("hasTargetTime") != null) {
+                                config.put("hasTargetTime", call.argument<Boolean>("hasTargetTime")!!)
+                            }
+
                             editor.putString(key, config.toString())
                             changed = true
                         }
@@ -399,6 +424,30 @@ class MainActivity : FlutterActivity() {
                                 else if (design.containsKey("currentValue")) config.put("currentValue", (design["currentValue"] as? Number)?.toInt() ?: 0)
 
                                 if (call.argument<String>("assignIconEmoji") != null) config.put("iconEmoji", call.argument<String>("assignIconEmoji"))
+
+                                if (call.argument<Boolean>("assignShowYears") != null) config.put("showYears", call.argument<Boolean>("assignShowYears")!!)
+                                else if (design.containsKey("showYears")) config.put("showYears", design["showYears"] as? Boolean ?: false)
+
+                                if (call.argument<Boolean>("assignShowMonths") != null) config.put("showMonths", call.argument<Boolean>("assignShowMonths")!!)
+                                else if (design.containsKey("showMonths")) config.put("showMonths", design["showMonths"] as? Boolean ?: false)
+
+                                if (call.argument<Boolean>("assignShowWeeks") != null) config.put("showWeeks", call.argument<Boolean>("assignShowWeeks")!!)
+                                else if (design.containsKey("showWeeks")) config.put("showWeeks", design["showWeeks"] as? Boolean ?: false)
+
+                                if (call.argument<Boolean>("assignShowDays") != null) config.put("showDays", call.argument<Boolean>("assignShowDays")!!)
+                                else if (design.containsKey("showDays")) config.put("showDays", design["showDays"] as? Boolean ?: true)
+
+                                if (call.argument<Boolean>("assignShowHours") != null) config.put("showHours", call.argument<Boolean>("assignShowHours")!!)
+                                else if (design.containsKey("showHours")) config.put("showHours", design["showHours"] as? Boolean ?: true)
+
+                                if (call.argument<Boolean>("assignShowMinutes") != null) config.put("showMinutes", call.argument<Boolean>("assignShowMinutes")!!)
+                                else if (design.containsKey("showMinutes")) config.put("showMinutes", design["showMinutes"] as? Boolean ?: true)
+
+                                if (call.argument<Boolean>("assignShowSeconds") != null) config.put("showSeconds", call.argument<Boolean>("assignShowSeconds")!!)
+                                else if (design.containsKey("showSeconds")) config.put("showSeconds", design["showSeconds"] as? Boolean ?: true)
+
+                                if (call.argument<Boolean>("assignHasTargetTime") != null) config.put("hasTargetTime", call.argument<Boolean>("assignHasTargetTime")!!)
+                                else if (design.containsKey("hasTargetTime")) config.put("hasTargetTime", design["hasTargetTime"] as? Boolean ?: false)
                             } else if (config.optString("counterId").isBlank() || config.optString("counterId") == "null") {
                                 // If this widget has no counter assigned yet, use fallback if provided
                                 val fallbackId = call.argument<String>("fallbackCounterId")
@@ -417,6 +466,14 @@ class MainActivity : FlutterActivity() {
                                     if (fallbackEmoji != null) {
                                         config.put("iconEmoji", fallbackEmoji)
                                     }
+                                    if (call.argument<Boolean>("fallbackShowYears") != null) config.put("showYears", call.argument<Boolean>("fallbackShowYears")!!)
+                                    if (call.argument<Boolean>("fallbackShowMonths") != null) config.put("showMonths", call.argument<Boolean>("fallbackShowMonths")!!)
+                                    if (call.argument<Boolean>("fallbackShowWeeks") != null) config.put("showWeeks", call.argument<Boolean>("fallbackShowWeeks")!!)
+                                    if (call.argument<Boolean>("fallbackShowDays") != null) config.put("showDays", call.argument<Boolean>("fallbackShowDays")!!)
+                                    if (call.argument<Boolean>("fallbackShowHours") != null) config.put("showHours", call.argument<Boolean>("fallbackShowHours")!!)
+                                    if (call.argument<Boolean>("fallbackShowMinutes") != null) config.put("showMinutes", call.argument<Boolean>("fallbackShowMinutes")!!)
+                                    if (call.argument<Boolean>("fallbackShowSeconds") != null) config.put("showSeconds", call.argument<Boolean>("fallbackShowSeconds")!!)
+                                    if (call.argument<Boolean>("fallbackHasTargetTime") != null) config.put("hasTargetTime", call.argument<Boolean>("fallbackHasTargetTime")!!)
                                 }
                             }
 
@@ -442,6 +499,15 @@ class MainActivity : FlutterActivity() {
                             if (design.containsKey("showTitle")) {
                                 config.put("showTitle", design["showTitle"] as? Boolean ?: true)
                             }
+                            if (design.containsKey("showYears")) {
+                                config.put("showYears", design["showYears"] as? Boolean ?: false)
+                            }
+                            if (design.containsKey("showMonths")) {
+                                config.put("showMonths", design["showMonths"] as? Boolean ?: false)
+                            }
+                            if (design.containsKey("showWeeks")) {
+                                config.put("showWeeks", design["showWeeks"] as? Boolean ?: false)
+                            }
                             if (design.containsKey("showDays")) {
                                 config.put("showDays", design["showDays"] as? Boolean ?: true)
                             }
@@ -456,6 +522,9 @@ class MainActivity : FlutterActivity() {
                             }
                             if (design.containsKey("showLabels")) {
                                 config.put("showLabels", design["showLabels"] as? Boolean ?: true)
+                            }
+                            if (design.containsKey("hasTargetTime")) {
+                                config.put("hasTargetTime", design["hasTargetTime"] as? Boolean ?: false)
                             }
 
                             editor.putString(key, config.toString())
@@ -523,11 +592,15 @@ class MainActivity : FlutterActivity() {
                                 "background" to config.opt("background"),
                                 "fontSize" to config.optDouble("fontSize", 25.0),
                                 "showTitle" to config.optBoolean("showTitle", true),
+                                "showYears" to config.optBoolean("showYears", false),
+                                "showMonths" to config.optBoolean("showMonths", false),
+                                "showWeeks" to config.optBoolean("showWeeks", false),
                                 "showDays" to config.optBoolean("showDays", true),
                                 "showHours" to config.optBoolean("showHours", true),
                                 "showMinutes" to config.optBoolean("showMinutes", true),
                                 "showSeconds" to config.optBoolean("showSeconds", true),
-                                "showLabels" to config.optBoolean("showLabels", true)
+                                "showLabels" to config.optBoolean("showLabels", true),
+                                "hasTargetTime" to config.optBoolean("hasTargetTime", false)
                             )
                             list.add(item)
                         }

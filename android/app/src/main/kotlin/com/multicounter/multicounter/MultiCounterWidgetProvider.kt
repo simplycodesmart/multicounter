@@ -519,6 +519,10 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
 )
 
         val showTitle = config.optBoolean("showTitle", true)
+        val hasTargetTime = config.optBoolean("hasTargetTime", false)
+        val showYears = config.optBoolean("showYears", false)
+        val showMonths = config.optBoolean("showMonths", false)
+        val showWeeks = config.optBoolean("showWeeks", false)
         val showDays = config.optBoolean("showDays", true)
         val showHours = config.optBoolean("showHours", true)
         val showMinutes = config.optBoolean("showMinutes", true)
@@ -588,6 +592,7 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         val iconEmoji = config.optString("iconEmoji", "").ifBlank {
             when {
                 title.contains("wedding", ignoreCase = true) || title.contains("marry", ignoreCase = true) -> "💍"
+                title.contains("pregnant", ignoreCase = true) || title.contains("pregnancy", ignoreCase = true) || title.contains("trimester", ignoreCase = true) -> "🤰"
                 title.contains("baby", ignoreCase = true) || title.contains("birth", ignoreCase = true) -> "👶"
                 title.contains("work", ignoreCase = true) -> "💼"
                 title.contains("anniversary", ignoreCase = true) -> "🥂"
@@ -616,13 +621,56 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_event_icon, iconEmoji)
         views.setViewVisibility(R.id.widget_icon, View.GONE)
 
-        // Status banner: expired countdown or target reached differentiation
+        // Status banner: expired countdown, today event, or target reached differentiation
         val targetValue = config.optLong("targetValue", 0L)
         val now = System.currentTimeMillis()
-        val isExpired = isCountdown && target > 0L && now >= target
+
+        val isExpired = if (isCountdown && target > 0L) {
+            if (!hasTargetTime) {
+                val calNow = java.util.Calendar.getInstance().apply {
+                    timeInMillis = now
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val calTarget = java.util.Calendar.getInstance().apply {
+                    timeInMillis = target
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                calNow.timeInMillis > calTarget.timeInMillis
+            } else {
+                now >= target
+            }
+        } else false
+
+        val isToday = isCountdown && !hasTargetTime && target > 0L && run {
+            val calNow = java.util.Calendar.getInstance().apply {
+                timeInMillis = now
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val calTarget = java.util.Calendar.getInstance().apply {
+                timeInMillis = target
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            calNow.timeInMillis == calTarget.timeInMillis
+        }
         val isTargetReached = isTally && targetValue > 0L && currentValue >= targetValue
 
-        if (isExpired) {
+        if (isToday) {
+            views.setViewVisibility(R.id.widget_status_banner, View.VISIBLE)
+            views.setTextViewText(R.id.widget_status_banner, "TODAY IS THE DAY! 🎉")
+            views.setTextColor(R.id.widget_status_banner, accent)
+        } else if (isExpired) {
             views.setViewVisibility(R.id.widget_status_banner, View.VISIBLE)
             views.setTextViewText(R.id.widget_status_banner, "EVENT ARRIVED! 🎉")
             views.setTextColor(R.id.widget_status_banner, accent)
@@ -655,11 +703,134 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             if (minH > 0) minH else (if (maxH > 0) maxH else 90)
         }
 
+        // Calculate counter duration using smart cascade
+        var years = 0L
+        var months = 0L
+        var weeks = 0L
+        var days = 0L
+        var hours = 0L
+        var minutes = 0L
+        var seconds = 0L
+
+        if (validTime) {
+            val now = System.currentTimeMillis()
+            val startEpoch: Long
+            val endEpoch: Long
+            if (isCountdown) {
+                if (!hasTargetTime) {
+                    val calNow = java.util.Calendar.getInstance().apply {
+                        timeInMillis = now
+                        set(java.util.Calendar.HOUR_OF_DAY, 0)
+                        set(java.util.Calendar.MINUTE, 0)
+                        set(java.util.Calendar.SECOND, 0)
+                        set(java.util.Calendar.MILLISECOND, 0)
+                    }
+                    val calTarget = java.util.Calendar.getInstance().apply {
+                        timeInMillis = target
+                        set(java.util.Calendar.HOUR_OF_DAY, 0)
+                        set(java.util.Calendar.MINUTE, 0)
+                        set(java.util.Calendar.SECOND, 0)
+                        set(java.util.Calendar.MILLISECOND, 0)
+                    }
+                    startEpoch = calNow.timeInMillis
+                    endEpoch = calTarget.timeInMillis
+                } else {
+                    startEpoch = now
+                    endEpoch = target
+                }
+            } else {
+                startEpoch = created
+                endEpoch = now
+            }
+
+            if (endEpoch > startEpoch) {
+                val cursor = java.util.Calendar.getInstance().apply { timeInMillis = startEpoch }
+
+                // 1. Years
+                if (showYears) {
+                    var y = 0
+                    while (true) {
+                        val testCal = cursor.clone() as java.util.Calendar
+                        testCal.add(java.util.Calendar.YEAR, y + 1)
+                        if (testCal.timeInMillis > endEpoch) break
+                        y++
+                    }
+                    if (y > 0) {
+                        years = y.toLong()
+                        cursor.add(java.util.Calendar.YEAR, y)
+                    }
+                }
+
+                // 2. Months
+                if (showMonths) {
+                    var m = 0
+                    while (true) {
+                        val testCal = cursor.clone() as java.util.Calendar
+                        testCal.add(java.util.Calendar.MONTH, m + 1)
+                        if (testCal.timeInMillis > endEpoch) break
+                        m++
+                    }
+                    if (m > 0) {
+                        months = m.toLong()
+                        cursor.add(java.util.Calendar.MONTH, m)
+                    }
+                }
+
+                // 3. Weeks
+                val remMsAfterMonths = max(0L, endEpoch - cursor.timeInMillis)
+                val totalRemDays = remMsAfterMonths / DAY
+                if (showWeeks) {
+                    val w = totalRemDays / 7L
+                    weeks = w
+                    cursor.timeInMillis += w * 7L * DAY
+                }
+
+                // 4. Days
+                if (showDays) {
+                    val d = max(0L, endEpoch - cursor.timeInMillis) / DAY
+                    days = d
+                    cursor.timeInMillis += d * DAY
+                }
+
+                // 5. Hours (only if countdown has target time, or for count-up)
+                if (showHours && (!isCountdown || hasTargetTime)) {
+                    val h = max(0L, endEpoch - cursor.timeInMillis) / HOUR
+                    hours = h
+                    cursor.timeInMillis += h * HOUR
+                }
+
+                // 6. Minutes (only if countdown has target time, or for count-up)
+                if (showMinutes && (!isCountdown || hasTargetTime)) {
+                    val min = max(0L, endEpoch - cursor.timeInMillis) / MINUTE
+                    minutes = min
+                    cursor.timeInMillis += min * MINUTE
+                }
+
+                // 7. Seconds (only if countdown has target time, or for count-up)
+                if (showSeconds && (!isCountdown || hasTargetTime)) {
+                    val s = max(0L, endEpoch - cursor.timeInMillis) / SECOND
+                    seconds = s
+                }
+            }
+        }
+
+        val yearsStr = years.toString()
+        val monthsStr = months.toString()
+        val weeksStr = weeks.toString()
+        val daysStr = days.toString()
+        val hoursStr = if (hours >= 100) hours.toString() else hours.toString().padStart(2, '0')
+        val minutesStr = if (minutes >= 100) minutes.toString() else minutes.toString().padStart(2, '0')
+        val secondsStr = if (seconds >= 100) seconds.toString() else seconds.toString().padStart(2, '0')
+
+        val allowTimeUnits = !isCountdown || hasTargetTime
         val visibleUnitsCount = if (isTally) 1 else (
+            (if (showYears) 1 else 0) +
+            (if (showMonths) 1 else 0) +
+            (if (showWeeks) 1 else 0) +
             (if (showDays) 1 else 0) +
-            (if (showHours) 1 else 0) +
-            (if (showMinutes) 1 else 0) +
-            (if (showSeconds) 1 else 0)
+            (if (showHours && allowTimeUnits) 1 else 0) +
+            (if (showMinutes && allowTimeUnits) 1 else 0) +
+            (if (showSeconds && allowTimeUnits) 1 else 0)
         ).coerceAtLeast(1)
 
         val headerHeight = if (showTitle) 28f else 0f
@@ -668,23 +839,49 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         val totalVerticalChrome = headerHeight + bannerHeight + labelHeight + (verticalPadding * 2 / density)
         val availableDigitHeight = (effectiveH - totalVerticalChrome).coerceAtLeast(16f)
 
+        // Find max digit length among visible values to dynamically adjust font (supports 4+ digits)
+        val visibleLengths = mutableListOf<Int>()
+        if (isTally) {
+            visibleLengths.add(currentValue.toString().length)
+        } else {
+            if (showYears) visibleLengths.add(yearsStr.length)
+            if (showMonths) visibleLengths.add(monthsStr.length)
+            if (showWeeks) visibleLengths.add(weeksStr.length)
+            if (showDays) visibleLengths.add(daysStr.length)
+            if (showHours && allowTimeUnits) visibleLengths.add(hoursStr.length)
+            if (showMinutes && allowTimeUnits) visibleLengths.add(minutesStr.length)
+            if (showSeconds && allowTimeUnits) visibleLengths.add(secondsStr.length)
+        }
+        val maxDigits = (visibleLengths.maxOrNull() ?: 2).coerceAtLeast(2)
+
+        // Digit length scale ensures 3 or 4 digits never clip
+        val digitLengthScale = when {
+            maxDigits >= 5 -> 0.46f
+            maxDigits == 4 -> 0.58f
+            maxDigits == 3 -> 0.78f
+            else -> 1.0f
+        }
+
         val colWidth = (effectiveW.toFloat() - (horizontalPadding * 2 / density)) / visibleUnitsCount
         val maxFromHeight = (availableDigitHeight * 0.88f).coerceIn(12f, 72f)
         val maxFromWidth = if (isTally) {
-            (colWidth * 0.45f).coerceIn(14f, 75f)
+            (colWidth * 0.45f * digitLengthScale).coerceIn(12f, 75f)
         } else {
-            (colWidth * 0.52f).coerceIn(12f, 64f)
+            (colWidth * 0.52f * digitLengthScale).coerceIn(10f, 64f)
         }
 
         val responsiveBaseSp = minOf(maxFromHeight, maxFromWidth)
         val userScale = (fontSize / 25f) * sizeScale * layoutScale
-        val dynamicSp = (responsiveBaseSp * userScale).coerceIn(12f, 65f)
+        val dynamicSp = (responsiveBaseSp * userScale).coerceIn(10f, 65f)
 
         // Apply dynamic responsive font size only to main numbers (labels remain static 9sp)
         val mainNumberIds = if (isTally) {
             listOf(R.id.widget_tally)
         } else {
             listOf(
+                R.id.widget_years,
+                R.id.widget_months,
+                R.id.widget_weeks,
                 R.id.widget_days,
                 R.id.widget_hours,
                 R.id.widget_minutes,
@@ -697,6 +894,9 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
 
         // Main time numbers styling (autoSizeTextType in XML auto-adjusts based on widget size)
         val valueIds = listOf(
+            R.id.widget_years,
+            R.id.widget_months,
+            R.id.widget_weeks,
             R.id.widget_days,
             R.id.widget_hours,
             R.id.widget_minutes,
@@ -711,6 +911,15 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         val colonSize = (dynamicSp * 0.85f).coerceIn(12f, 52f)
         val dotSize = (dynamicSp * 0.55f).coerceIn(10f, 26f)
 
+        views.setTextColor(R.id.widget_sep_years, accent)
+        views.setTextViewTextSize(R.id.widget_sep_years, TypedValue.COMPLEX_UNIT_SP, dotSize)
+
+        views.setTextColor(R.id.widget_sep_months, accent)
+        views.setTextViewTextSize(R.id.widget_sep_months, TypedValue.COMPLEX_UNIT_SP, dotSize)
+
+        views.setTextColor(R.id.widget_sep_weeks, accent)
+        views.setTextViewTextSize(R.id.widget_sep_weeks, TypedValue.COMPLEX_UNIT_SP, dotSize)
+
         views.setTextColor(R.id.widget_sep_days, accent)
         views.setTextViewTextSize(R.id.widget_sep_days, TypedValue.COMPLEX_UNIT_SP, dotSize)
 
@@ -721,8 +930,11 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         views.setTextViewTextSize(R.id.widget_colon_ms, TypedValue.COMPLEX_UNIT_SP, colonSize)
 
         // Label styling in Row 2 (scaled proportionally with digits, no spacer interference)
-        val labelSp = (dynamicSp * 0.32f).coerceIn(9f, 13f)
+        val labelSp = (dynamicSp * 0.32f).coerceIn(8f, 13f)
         val labelIds = listOf(
+            R.id.widget_years_label,
+            R.id.widget_months_label,
+            R.id.widget_weeks_label,
             R.id.widget_days_label,
             R.id.widget_hours_label,
             R.id.widget_minutes_label,
@@ -740,130 +952,73 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             accent
         )
 
-        // Calculate counter duration
-        var days = 0L
-        var hours = 0L
-        var minutes = 0L
-        var seconds = 0L
-
-        if (validTime) {
-            val now = System.currentTimeMillis()
-
-            val duration = if (isCountdown) {
-                max(0L, target - now)
-            } else {
-                max(0L, now - created)
-            }
-
-            days = duration / DAY
-            hours = (duration % DAY) / HOUR
-            minutes = (duration % HOUR) / MINUTE
-            seconds = (duration % MINUTE) / SECOND
-        }
-
         // Display time values
-        views.setTextViewText(
-            R.id.widget_days,
-            days.toString()
-        )
-
-        views.setTextViewText(
-            R.id.widget_hours,
-            hours.toString().padStart(2, '0')
-        )
-
-        views.setTextViewText(
-            R.id.widget_minutes,
-            minutes.toString().padStart(2, '0')
-        )
-
-        views.setTextViewText(
-            R.id.widget_seconds,
-            seconds.toString().padStart(2, '0')
-        )
+        views.setTextViewText(R.id.widget_years, yearsStr)
+        views.setTextViewText(R.id.widget_months, monthsStr)
+        views.setTextViewText(R.id.widget_weeks, weeksStr)
+        views.setTextViewText(R.id.widget_days, daysStr)
+        views.setTextViewText(R.id.widget_hours, hoursStr)
+        views.setTextViewText(R.id.widget_minutes, minutesStr)
+        views.setTextViewText(R.id.widget_seconds, secondsStr)
 
         // Individual visibility settings
+        val yearsVisible = validTime && showYears
+        val monthsVisible = validTime && showMonths
+        val weeksVisible = validTime && showWeeks
         val daysVisible = validTime && showDays
-        val hoursVisible = validTime && showHours
-        val minutesVisible = validTime && showMinutes
-        val secondsVisible = validTime && showSeconds
+        val hoursVisible = validTime && showHours && allowTimeUnits
+        val minutesVisible = validTime && showMinutes && allowTimeUnits
+        val secondsVisible = validTime && showSeconds && allowTimeUnits
 
         // Digits visibility
-        views.setViewVisibility(
-            R.id.widget_days,
-            if (daysVisible) View.VISIBLE else View.GONE
-        )
-
-        views.setViewVisibility(
-            R.id.widget_hours,
-            if (hoursVisible) View.VISIBLE else View.GONE
-        )
-
-        views.setViewVisibility(
-            R.id.widget_minutes,
-            if (minutesVisible) View.VISIBLE else View.GONE
-        )
-
-        views.setViewVisibility(
-            R.id.widget_seconds,
-            if (secondsVisible) View.VISIBLE else View.GONE
-        )
+        views.setViewVisibility(R.id.widget_years, if (yearsVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_months, if (monthsVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_weeks, if (weeksVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_days, if (daysVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_hours, if (hoursVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_minutes, if (minutesVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_seconds, if (secondsVisible) View.VISIBLE else View.GONE)
 
         // Labels visibility
-        views.setViewVisibility(
-            R.id.widget_days_label,
-            if (daysVisible && showLabels) View.VISIBLE else View.GONE
-        )
+        views.setViewVisibility(R.id.widget_years_label, if (yearsVisible && showLabels) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_months_label, if (monthsVisible && showLabels) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_weeks_label, if (weeksVisible && showLabels) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_days_label, if (daysVisible && showLabels) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_hours_label, if (hoursVisible && showLabels) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_minutes_label, if (minutesVisible && showLabels) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_seconds_label, if (secondsVisible && showLabels) View.VISIBLE else View.GONE)
 
-        views.setViewVisibility(
-            R.id.widget_hours_label,
-            if (hoursVisible && showLabels) View.VISIBLE else View.GONE
-        )
-
-        views.setViewVisibility(
-            R.id.widget_minutes_label,
-            if (minutesVisible && showLabels) View.VISIBLE else View.GONE
-        )
-
-        views.setViewVisibility(
-            R.id.widget_seconds_label,
-            if (secondsVisible && showLabels) View.VISIBLE else View.GONE
-        )
-
-        // Colons and Days separator visibility
+        // Colons and Separators visibility
+        val sepYearsVisible = yearsVisible && (monthsVisible || weeksVisible || daysVisible || hoursVisible || minutesVisible || secondsVisible)
+        val sepMonthsVisible = monthsVisible && (weeksVisible || daysVisible || hoursVisible || minutesVisible || secondsVisible)
+        val sepWeeksVisible = weeksVisible && (daysVisible || hoursVisible || minutesVisible || secondsVisible)
         val sepDaysVisible = daysVisible && (hoursVisible || minutesVisible || secondsVisible)
         val colonHmVisible = hoursVisible && (minutesVisible || secondsVisible)
         val colonMsVisible = minutesVisible && secondsVisible
 
-        views.setViewVisibility(
-            R.id.widget_sep_days,
-            if (sepDaysVisible) View.VISIBLE else View.GONE
-        )
-        views.setViewVisibility(
-            R.id.widget_sep_days_spacer,
-            if (sepDaysVisible && showLabels) View.INVISIBLE else View.GONE
-        )
+        views.setViewVisibility(R.id.widget_sep_years, if (sepYearsVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_sep_years_spacer, if (sepYearsVisible && showLabels) View.INVISIBLE else View.GONE)
 
-        views.setViewVisibility(
-            R.id.widget_colon_hm,
-            if (colonHmVisible) View.VISIBLE else View.GONE
-        )
-        views.setViewVisibility(
-            R.id.widget_colon_hm_spacer,
-            if (colonHmVisible && showLabels) View.INVISIBLE else View.GONE
-        )
+        views.setViewVisibility(R.id.widget_sep_months, if (sepMonthsVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_sep_months_spacer, if (sepMonthsVisible && showLabels) View.INVISIBLE else View.GONE)
 
-        views.setViewVisibility(
-            R.id.widget_colon_ms,
-            if (colonMsVisible) View.VISIBLE else View.GONE
-        )
-        views.setViewVisibility(
-            R.id.widget_colon_ms_spacer,
-            if (colonMsVisible && showLabels) View.INVISIBLE else View.GONE
-        )
+        views.setViewVisibility(R.id.widget_sep_weeks, if (sepWeeksVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_sep_weeks_spacer, if (sepWeeksVisible && showLabels) View.INVISIBLE else View.GONE)
+
+        views.setViewVisibility(R.id.widget_sep_days, if (sepDaysVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_sep_days_spacer, if (sepDaysVisible && showLabels) View.INVISIBLE else View.GONE)
+
+        views.setViewVisibility(R.id.widget_colon_hm, if (colonHmVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_colon_hm_spacer, if (colonHmVisible && showLabels) View.INVISIBLE else View.GONE)
+
+        views.setViewVisibility(R.id.widget_colon_ms, if (colonMsVisible) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.widget_colon_ms_spacer, if (colonMsVisible && showLabels) View.INVISIBLE else View.GONE)
 
         val anyTimeUnitVisible =
-            daysVisible ||
+            yearsVisible ||
+                monthsVisible ||
+                weeksVisible ||
+                daysVisible ||
                 hoursVisible ||
                 minutesVisible ||
                 secondsVisible

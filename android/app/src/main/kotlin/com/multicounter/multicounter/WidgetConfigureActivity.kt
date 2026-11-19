@@ -209,11 +209,15 @@ class WidgetConfigureActivity : Activity() {
             )
 
             put("showTitle", studio.optBoolean("showTitle", true))
-            put("showDays", studio.optBoolean("showDays", true))
-            put("showHours", studio.optBoolean("showHours", true))
-            put("showMinutes", studio.optBoolean("showMinutes", true))
-            put("showSeconds", studio.optBoolean("showSeconds", true))
+            put("showYears", if (studio.has("showYears")) studio.optBoolean("showYears") else counter.optBoolean("showYears", false))
+            put("showMonths", if (studio.has("showMonths")) studio.optBoolean("showMonths") else counter.optBoolean("showMonths", false))
+            put("showWeeks", if (studio.has("showWeeks")) studio.optBoolean("showWeeks") else counter.optBoolean("showWeeks", false))
+            put("showDays", if (studio.has("showDays")) studio.optBoolean("showDays") else counter.optBoolean("showDays", true))
+            put("showHours", if (studio.has("showHours")) studio.optBoolean("showHours") else counter.optBoolean("showHours", true))
+            put("showMinutes", if (studio.has("showMinutes")) studio.optBoolean("showMinutes") else counter.optBoolean("showMinutes", true))
+            put("showSeconds", if (studio.has("showSeconds")) studio.optBoolean("showSeconds") else counter.optBoolean("showSeconds", true))
             put("showLabels", studio.optBoolean("showLabels", true))
+            put("hasTargetTime", counter.optBoolean("hasTargetTime", false))
 
             put(
                 "layout",

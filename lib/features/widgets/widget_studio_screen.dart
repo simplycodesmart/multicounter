@@ -61,6 +61,9 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
   Color _accent = AppTheme.accentGold;
   bool _useCounterColor = true;
   double _fontSize = 25;
+  bool _showYears = false;
+  bool _showMonths = false;
+  bool _showWeeks = false;
   bool _showDays = true;
   bool _showHours = true;
   bool _showMinutes = true;
@@ -164,6 +167,9 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
     }
 
     _showTitle = widgetInfo['showTitle'] as bool? ?? true;
+    _showYears = widgetInfo['showYears'] as bool? ?? false;
+    _showMonths = widgetInfo['showMonths'] as bool? ?? false;
+    _showWeeks = widgetInfo['showWeeks'] as bool? ?? false;
     _showDays = widgetInfo['showDays'] as bool? ?? true;
     _showHours = widgetInfo['showHours'] as bool? ?? true;
     _showMinutes = widgetInfo['showMinutes'] as bool? ?? true;
@@ -190,7 +196,10 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
       _accent = Color(accVal);
       _useCounterColor = (accVal == counter.colorValue);
       _fontSize = (data['fontSize'] as num?)?.toDouble() ?? 25.0;
-      _showDays = data['showDays'] as bool? ?? true;
+      _showYears = data['showYears'] as bool? ?? counter.showYears;
+      _showMonths = data['showMonths'] as bool? ?? counter.showMonths;
+      _showWeeks = data['showWeeks'] as bool? ?? counter.showWeeks;
+      _showDays = data['showDays'] as bool? ?? counter.showDays;
       _showHours = data['showHours'] as bool? ?? true;
       _showMinutes = data['showMinutes'] as bool? ?? true;
       _showSeconds = data['showSeconds'] as bool? ?? true;
@@ -221,6 +230,9 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
       _backgroundOpacity = _background.a;
       _accent = Color((data?['accent'] as num?)?.toInt() ?? AppTheme.accentGold.toARGB32());
       _fontSize = (data?['fontSize'] as num?)?.toDouble() ?? 25;
+      _showYears = data?['showYears'] as bool? ?? false;
+      _showMonths = data?['showMonths'] as bool? ?? false;
+      _showWeeks = data?['showWeeks'] as bool? ?? false;
       _showDays = data?['showDays'] as bool? ?? true;
       _showHours = data?['showHours'] as bool? ?? true;
       _showMinutes = data?['showMinutes'] as bool? ?? true;
@@ -238,6 +250,9 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
     'background': _background.toARGB32().toSigned(32),
     'accent': _accent.toARGB32().toSigned(32),
     'fontSize': _fontSize,
+    'showYears': _showYears,
+    'showMonths': _showMonths,
+    'showWeeks': _showWeeks,
     'showDays': _showDays,
     'showHours': _showHours,
     'showMinutes': _showMinutes,
@@ -476,10 +491,13 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
         _accent = Color(accVal);
         _useCounterColor = true;
         _fontSize = (def['fontSize'] as num).toDouble();
-        _showDays = def['showDays'] as bool;
-        _showHours = def['showHours'] as bool;
-        _showMinutes = def['showMinutes'] as bool;
-        _showSeconds = def['showSeconds'] as bool;
+        _showYears = def['showYears'] as bool? ?? counter.showYears;
+        _showMonths = def['showMonths'] as bool? ?? counter.showMonths;
+        _showWeeks = def['showWeeks'] as bool? ?? false;
+        _showDays = def['showDays'] as bool? ?? true;
+        _showHours = def['showHours'] as bool? ?? true;
+        _showMinutes = def['showMinutes'] as bool? ?? true;
+        _showSeconds = def['showSeconds'] as bool? ?? true;
         _showLabels = def['showLabels'] as bool;
         _showTitle = def['showTitle'] as bool;
         _refreshIntervalMs = (def['refreshIntervalMs'] as num).toInt();
@@ -493,6 +511,9 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
         _accent = AppTheme.accentGold;
         _useCounterColor = true;
         _fontSize = 25;
+        _showYears = false;
+        _showMonths = false;
+        _showWeeks = false;
         _showDays = true;
         _showHours = true;
         _showMinutes = true;
@@ -760,6 +781,9 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
                 background: _background,
                 accent: _accent,
                 fontSize: _fontSize,
+                showYears: _showYears,
+                showMonths: _showMonths,
+                showWeeks: _showWeeks,
                 showDays: _showDays,
                 showHours: _showHours,
                 showMinutes: _showMinutes,
@@ -1204,6 +1228,30 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     _VisibilityTile(
+                      title: 'Years (YRS)',
+                      value: _showYears,
+                      onChanged: (v) {
+                        setState(() => _showYears = v);
+                        _notifyOptionChanged(selectedCounter);
+                      },
+                    ),
+                    _VisibilityTile(
+                      title: 'Months (MOS)',
+                      value: _showMonths,
+                      onChanged: (v) {
+                        setState(() => _showMonths = v);
+                        _notifyOptionChanged(selectedCounter);
+                      },
+                    ),
+                    _VisibilityTile(
+                      title: 'Weeks (e.g. Pregnancy / Milestones)',
+                      value: _showWeeks,
+                      onChanged: (v) {
+                        setState(() => _showWeeks = v);
+                        _notifyOptionChanged(selectedCounter);
+                      },
+                    ),
+                    _VisibilityTile(
                       title: 'Days',
                       value: _showDays,
                       onChanged: (v) {
@@ -1237,7 +1285,7 @@ class _WidgetStudioScreenState extends ConsumerState<WidgetStudioScreen> {
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
                     _VisibilityTile(
-                      title: 'Unit Labels (DAYS, HRS, MIN, SEC)',
+                      title: 'Unit Labels (YRS, MOS, WKS, DAYS, HRS, MIN, SEC)',
                       value: _showLabels,
                       onChanged: (v) {
                         setState(() => _showLabels = v);
@@ -1699,6 +1747,9 @@ class _WidgetPreview extends StatelessWidget {
     required this.background,
     required this.accent,
     required this.fontSize,
+    required this.showYears,
+    required this.showMonths,
+    required this.showWeeks,
     required this.showDays,
     required this.showHours,
     required this.showMinutes,
@@ -1714,7 +1765,10 @@ class _WidgetPreview extends StatelessWidget {
   final Color background;
   final Color accent;
   final double fontSize;
-  final bool showDays,
+  final bool showYears,
+      showMonths,
+      showWeeks,
+      showDays,
       showHours,
       showMinutes,
       showSeconds,
@@ -1724,26 +1778,57 @@ class _WidgetPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration = previewExpired ? Duration.zero : counter.duration;
     final isTally = counter.type == CounterType.tally;
+    final allowTimeUnits = counter.type != CounterType.countdown || counter.hasTargetTime;
+    final showHoursEffective = showHours && allowTimeUnits;
+    final showMinutesEffective = showMinutes && allowTimeUnits;
+    final showSecondsEffective = showSeconds && allowTimeUnits;
+
+    final breakdown = previewExpired
+        ? const CounterBreakdown()
+        : counter.calculateBreakdown(
+            overrideYears: showYears,
+            overrideMonths: showMonths,
+            overrideWeeks: showWeeks,
+            overrideDays: showDays,
+            overrideHours: showHoursEffective,
+            overrideMinutes: showMinutesEffective,
+            overrideSeconds: showSecondsEffective,
+          );
 
     final values = <(String, String, bool)>[
-      ('${duration.inDays}', 'DAYS', showDays),
-      (
-        duration.inHours.remainder(24).toString().padLeft(2, '0'),
-        'HRS',
-        showHours,
-      ),
-      (
-        duration.inMinutes.remainder(60).toString().padLeft(2, '0'),
-        'MIN',
-        showMinutes,
-      ),
-      (
-        duration.inSeconds.remainder(60).toString().padLeft(2, '0'),
-        'SEC',
-        showSeconds,
-      ),
+      if (showYears)
+        ('${breakdown.years}', 'YRS', showYears),
+      if (showMonths)
+        ('${breakdown.months}', 'MOS', showMonths),
+      if (showWeeks)
+        ('${breakdown.weeks}', 'WKS', showWeeks),
+      if (showDays)
+        ('${breakdown.days}', 'DAYS', showDays),
+      if (showHoursEffective)
+        (
+          breakdown.hours >= 100
+              ? '${breakdown.hours}'
+              : breakdown.hours.toString().padLeft(2, '0'),
+          'HRS',
+          showHoursEffective,
+        ),
+      if (showMinutesEffective)
+        (
+          breakdown.minutes >= 100
+              ? '${breakdown.minutes}'
+              : breakdown.minutes.toString().padLeft(2, '0'),
+          'MIN',
+          showMinutesEffective,
+        ),
+      if (showSecondsEffective)
+        (
+          breakdown.seconds >= 100
+              ? '${breakdown.seconds}'
+              : breakdown.seconds.toString().padLeft(2, '0'),
+          'SEC',
+          showSecondsEffective,
+        ),
     ].where((item) => item.$3).toList();
 
     final display = values.isEmpty
@@ -1765,12 +1850,18 @@ class _WidgetPreview extends StatelessWidget {
     const staticTitleFontSize = 13.0;
     const staticLabelFontSize = 9.0;
 
-    // Main font auto-adjusts based on widget size
+    // Main font auto-adjusts based on widget size, number of units, and digit length
+    final maxDigits = display.fold<int>(2, (max, item) => item.$1.length > max ? item.$1.length : max);
+    final digitScale = maxDigits >= 5 ? 0.70 : (maxDigits == 4 ? 0.80 : (maxDigits == 3 ? 0.90 : 1.0));
+    final unitCountScale = display.length >= 6 ? 0.72 : (display.length >= 5 ? 0.82 : 1.0);
+
     final autoAdjustedMainFontSize = size == 'Small'
         ? (fontSize * 0.85).clamp(16.0, 26.0)
         : size == 'Large'
             ? (fontSize * 1.30).clamp(28.0, 48.0)
             : fontSize.clamp(20.0, 36.0);
+
+    final finalMainFontSize = autoAdjustedMainFontSize * digitScale * unitCountScale;
 
     final widgetBody = Container(
       width: double.infinity,
@@ -1860,7 +1951,7 @@ class _WidgetPreview extends StatelessWidget {
               '${previewExpired && counter.targetValue != null ? counter.targetValue : counter.currentValue}',
               style: TextStyle(
                 color: accent,
-                fontSize: (autoAdjustedMainFontSize * 1.35).clamp(24.0, 60.0),
+                fontSize: (finalMainFontSize * 1.35).clamp(24.0, 60.0),
                 fontWeight: FontWeight.w900,
               ),
             )
@@ -1875,7 +1966,7 @@ class _WidgetPreview extends StatelessWidget {
                       item.$1,
                       style: TextStyle(
                         color: accent,
-                        fontSize: autoAdjustedMainFontSize,
+                        fontSize: finalMainFontSize,
                         fontWeight: FontWeight.w800,
                         height: 1,
                       ),
@@ -1893,23 +1984,38 @@ class _WidgetPreview extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     for (var i = 0; i < display.length; i++) ...[
-                      if (i > 0) ...[
+                      if (i > 0)
                         SizedBox(
-                          width: display[i - 1].$2 == 'DAYS' ? 12 : 14,
+                          width: (display[i - 1].$2 == 'YRS' ||
+                                  display[i - 1].$2 == 'MOS' ||
+                                  display[i - 1].$2 == 'WKS' ||
+                                  display[i - 1].$2 == 'WEEKS' ||
+                                  display[i - 1].$2 == 'DAYS')
+                              ? 12
+                              : 14,
                           child: Center(
                             child: Text(
-                              display[i - 1].$2 == 'DAYS' ? '·' : ':',
+                              (display[i - 1].$2 == 'YRS' ||
+                                      display[i - 1].$2 == 'MOS' ||
+                                      display[i - 1].$2 == 'WKS' ||
+                                      display[i - 1].$2 == 'WEEKS' ||
+                                      display[i - 1].$2 == 'DAYS')
+                                  ? '·'
+                                  : ':',
                               style: TextStyle(
                                 color: accent,
-                                fontSize: display[i - 1].$2 == 'DAYS'
-                                    ? (autoAdjustedMainFontSize * 0.55).clamp(10.0, 26.0)
-                                    : (autoAdjustedMainFontSize * 0.85).clamp(12.0, 52.0),
+                                fontSize: (display[i - 1].$2 == 'YRS' ||
+                                        display[i - 1].$2 == 'MOS' ||
+                                        display[i - 1].$2 == 'WKS' ||
+                                        display[i - 1].$2 == 'WEEKS' ||
+                                        display[i - 1].$2 == 'DAYS')
+                                    ? (finalMainFontSize * 0.55).clamp(10.0, 26.0)
+                                    : (finalMainFontSize * 0.85).clamp(12.0, 52.0),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                         ),
-                      ],
                       Expanded(
                         child: Center(
                           child: FittedBox(
@@ -1918,7 +2024,7 @@ class _WidgetPreview extends StatelessWidget {
                               display[i].$1,
                               style: TextStyle(
                                 color: accent,
-                                fontSize: autoAdjustedMainFontSize,
+                                fontSize: finalMainFontSize,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: layout == 'Bold' ? -1.0 : -.4,
                               ),
@@ -1936,11 +2042,16 @@ class _WidgetPreview extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       for (var i = 0; i < display.length; i++) ...[
-                        if (i > 0) ...[
+                        if (i > 0)
                           SizedBox(
-                            width: display[i - 1].$2 == 'DAYS' ? 12 : 14,
+                            width: (display[i - 1].$2 == 'YRS' ||
+                                    display[i - 1].$2 == 'MOS' ||
+                                    display[i - 1].$2 == 'WKS' ||
+                                    display[i - 1].$2 == 'WEEKS' ||
+                                    display[i - 1].$2 == 'DAYS')
+                                ? 12
+                                : 14,
                           ),
-                        ],
                         Expanded(
                           child: Center(
                             child: Text(

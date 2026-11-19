@@ -83,6 +83,93 @@
             android:gravity="center"
             android:baselineAligned="false">
 
+            <!-- Years Digit (optional) -->
+            <TextView
+                android:id="@+id/widget_years"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="0"
+                android:textColor="#FFFFD400"
+                android:textSize="25sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:visibility="gone" />
+
+            <!-- Refined Dot Separator after Years (·) with fixed 12dp width -->
+            <TextView
+                android:id="@+id/widget_sep_years"
+                android:layout_width="12dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:gravity="center"
+                android:text="·"
+                android:textColor="#FFFFD400"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:visibility="gone" />
+
+            <!-- Months Digit (optional) -->
+            <TextView
+                android:id="@+id/widget_months"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="0"
+                android:textColor="#FFFFD400"
+                android:textSize="25sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:visibility="gone" />
+
+            <!-- Refined Dot Separator after Months (·) with fixed 12dp width -->
+            <TextView
+                android:id="@+id/widget_sep_months"
+                android:layout_width="12dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:gravity="center"
+                android:text="·"
+                android:textColor="#FFFFD400"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:visibility="gone" />
+
+            <!-- Weeks Digit (optional, e.g. for pregnancy/milestone tracking) -->
+            <TextView
+                android:id="@+id/widget_weeks"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="0"
+                android:textColor="#FFFFD400"
+                android:textSize="25sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:visibility="gone" />
+
+            <!-- Refined Dot Separator between Weeks and Days (·) with fixed 12dp width -->
+            <TextView
+                android:id="@+id/widget_sep_weeks"
+                android:layout_width="12dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:gravity="center"
+                android:text="·"
+                android:textColor="#FFFFD400"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:visibility="gone" />
+
             <!-- Days Digit -->
             <TextView
                 android:id="@+id/widget_days"
@@ -180,7 +267,7 @@
 
         </LinearLayout>
 
-        <!-- Row 2: Sub-labels (DAYS, HRS, MINS, SECS) right underneath numbers with exact matching width spacers -->
+        <!-- Row 2: Sub-labels (YRS, MOS, WKS, DAYS, HRS, MINS, SECS) right underneath numbers with exact matching width spacers -->
         <LinearLayout
             android:id="@+id/widget_labels_container"
             android:layout_width="match_parent"
@@ -189,6 +276,66 @@
             android:orientation="horizontal"
             android:gravity="center"
             android:baselineAligned="false">
+
+            <TextView
+                android:id="@+id/widget_years_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="YRS"
+                android:textColor="#BFFFFFFF"
+                android:textSize="9sp"
+                android:includeFontPadding="false"
+                android:visibility="gone" />
+
+            <!-- Spacer under sep_years matching width -->
+            <TextView
+                android:id="@+id/widget_sep_years_spacer"
+                android:layout_width="12dp"
+                android:layout_height="1dp"
+                android:text=""
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/widget_months_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="MOS"
+                android:textColor="#BFFFFFFF"
+                android:textSize="9sp"
+                android:includeFontPadding="false"
+                android:visibility="gone" />
+
+            <!-- Spacer under sep_months matching width -->
+            <TextView
+                android:id="@+id/widget_sep_months_spacer"
+                android:layout_width="12dp"
+                android:layout_height="1dp"
+                android:text=""
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/widget_weeks_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="WKS"
+                android:textColor="#BFFFFFFF"
+                android:textSize="9sp"
+                android:includeFontPadding="false"
+                android:visibility="gone" />
+
+            <!-- Spacer under sep_weeks matching width -->
+            <TextView
+                android:id="@+id/widget_sep_weeks_spacer"
+                android:layout_width="12dp"
+                android:layout_height="1dp"
+                android:text=""
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_days_label"
