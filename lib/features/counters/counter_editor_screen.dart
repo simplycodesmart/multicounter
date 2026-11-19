@@ -38,6 +38,14 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
   bool _enableNotification = false;
   String _notificationTiming = 'atEvent';
   String _notificationSound = 'default';
+  bool _hasTargetTime = false;
+  bool _showYears = false;
+  bool _showMonths = false;
+  bool _showWeeks = false;
+  bool _showDays = true;
+  bool _showHours = false;
+  bool _showMinutes = false;
+  bool _showSeconds = false;
   bool _userSelectedCustomIcon = false;
   bool _isSaving = false;
 
@@ -55,7 +63,17 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
     Color(0xFFEEEEEE), // Silver
   ];
 
-  static final List<({String label, String title, IconData icon, Color color, CounterRepeatInterval repeat, String sound})> _quickEventPresets = [
+  static final List<({String label, String title, IconData icon, Color color, CounterRepeatInterval repeat, String sound, bool? showWeeks, bool? hasTargetTime})> _quickEventPresets = [
+    (
+      label: 'Pregnancy',
+      title: 'Baby Due Date',
+      icon: Icons.child_friendly_rounded,
+      color: const Color(0xFFFF8DA1),
+      repeat: CounterRepeatInterval.none,
+      sound: 'chime',
+      showWeeks: true,
+      hasTargetTime: false,
+    ),
     (
       label: 'Wedding',
       title: 'Our Wedding',
@@ -63,6 +81,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFFFF70A6),
       repeat: CounterRepeatInterval.yearly,
       sound: 'celebration',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Baby Birth',
@@ -71,6 +91,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFF5AA9FF),
       repeat: CounterRepeatInterval.none,
       sound: 'chime',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Anniversary',
@@ -79,6 +101,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFFFF5252),
       repeat: CounterRepeatInterval.yearly,
       sound: 'celebration',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Work Anniversary',
@@ -87,6 +111,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFFFFD400),
       repeat: CounterRepeatInterval.yearly,
       sound: 'default',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Birthday',
@@ -95,6 +121,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFFFFA000),
       repeat: CounterRepeatInterval.yearly,
       sound: 'celebration',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Vacation',
@@ -103,6 +131,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFF00E5FF),
       repeat: CounterRepeatInterval.none,
       sound: 'chime',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Graduation',
@@ -111,6 +141,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFF8B5CF6),
       repeat: CounterRepeatInterval.none,
       sound: 'celebration',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'New Home',
@@ -119,6 +151,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFF00E676),
       repeat: CounterRepeatInterval.none,
       sound: 'default',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'New Car',
@@ -127,6 +161,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFF45D6C5),
       repeat: CounterRepeatInterval.none,
       sound: 'default',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Retirement',
@@ -135,6 +171,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFFFFD400),
       repeat: CounterRepeatInterval.none,
       sound: 'celebration',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Milestone',
@@ -143,6 +181,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFFFFD400),
       repeat: CounterRepeatInterval.none,
       sound: 'celebration',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
     (
       label: 'Fitness Goal',
@@ -151,6 +191,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       color: const Color(0xFFFF6B35),
       repeat: CounterRepeatInterval.weekly,
       sound: 'chime',
+      showWeeks: false,
+      hasTargetTime: false,
     ),
   ];
 
@@ -220,6 +262,7 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       _type = counter.type;
       _targetDate = counter.targetDate ?? _targetDate;
       _startDate = counter.startDate ?? counter.createdAt;
+      _hasTargetTime = counter.hasTargetTime;
       _color = counter.color;
       _icon = counter.icon;
       _repeatInterval = counter.repeatInterval;
@@ -227,16 +270,27 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       _enableNotification = counter.enableNotification;
       _notificationTiming = counter.notificationTiming;
       _notificationSound = counter.notificationSound;
+      _showYears = counter.showYears;
+      _showMonths = counter.showMonths;
+      _showWeeks = counter.showWeeks;
+      _showDays = counter.showDays;
+      _showHours = counter.showHours;
+      _showMinutes = counter.showMinutes;
+      _showSeconds = counter.showSeconds;
       _userSelectedCustomIcon = true;
     } else {
       // Use default counter type from settings
       final settings = ref.read(settingsProvider);
       _type = settings.defaultCounterType;
       _color = settings.accentColor;
+      _hasTargetTime = false;
+      _showHours = false;
+      _showMinutes = false;
+      _showSeconds = false;
     }
   }
 
-  void _applyEventPreset(({String label, String title, IconData icon, Color color, CounterRepeatInterval repeat, String sound}) preset) {
+  void _applyEventPreset(({String label, String title, IconData icon, Color color, CounterRepeatInterval repeat, String sound, bool? showWeeks, bool? hasTargetTime}) preset) {
     setState(() {
       _titleController.text = preset.title;
       _icon = preset.icon;
@@ -244,6 +298,16 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
       _repeatInterval = preset.repeat;
       _notificationSound = preset.sound;
       _enableNotification = true;
+      _showWeeks = preset.showWeeks ?? false;
+      _hasTargetTime = preset.hasTargetTime ?? false;
+      if (!_hasTargetTime) {
+        _showHours = false;
+        _showMinutes = false;
+        _showSeconds = false;
+        if (!_showYears && !_showMonths && !_showWeeks && !_showDays) {
+          _showDays = true;
+        }
+      }
       _userSelectedCustomIcon = true;
     });
   }
@@ -252,7 +316,19 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
     setState(() {});
     if (_userSelectedCustomIcon) return;
     final lower = text.toLowerCase().trim();
-    if (lower.contains('wedding') || lower.contains('marriage')) {
+    if (lower.contains('pregnant') || lower.contains('pregnancy') || lower.contains('trimester') || lower.contains('due date')) {
+      setState(() {
+        _icon = Icons.child_friendly_rounded;
+        _color = const Color(0xFFFF8DA1);
+        _notificationSound = 'chime';
+        _enableNotification = true;
+        _showWeeks = true;
+        _hasTargetTime = false;
+        _showHours = false;
+        _showMinutes = false;
+        _showSeconds = false;
+      });
+    } else if (lower.contains('wedding') || lower.contains('marriage')) {
       setState(() {
         _icon = Icons.favorite_rounded;
         _color = const Color(0xFFFF70A6);
@@ -260,7 +336,7 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
         _notificationSound = 'celebration';
         _enableNotification = true;
       });
-    } else if (lower.contains('baby') || lower.contains('birth') || lower.contains('due date') || lower.contains('newborn') || lower.contains('pregnant')) {
+    } else if (lower.contains('baby') || lower.contains('birth') || lower.contains('newborn')) {
       setState(() {
         _icon = Icons.child_care_rounded;
         _color = const Color(0xFF5AA9FF);
@@ -325,8 +401,8 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
         picked.year,
         picked.month,
         picked.day,
-        _targetDate.hour,
-        _targetDate.minute,
+        _hasTargetTime ? _targetDate.hour : 0,
+        _hasTargetTime ? _targetDate.minute : 0,
       );
     });
   }
@@ -334,12 +410,15 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
   Future<void> _pickTargetTime() async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_targetDate),
+      initialTime: _hasTargetTime
+          ? TimeOfDay.fromDateTime(_targetDate)
+          : const TimeOfDay(hour: 12, minute: 0),
     );
 
     if (picked == null || !mounted) return;
 
     setState(() {
+      _hasTargetTime = true;
       _targetDate = DateTime(
         _targetDate.year,
         _targetDate.month,
@@ -392,7 +471,10 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
 
   void _applyQuickCountdownPreset(Duration duration) {
     setState(() {
-      _targetDate = DateTime.now().add(duration);
+      final base = DateTime.now().add(duration);
+      _targetDate = _hasTargetTime
+          ? base
+          : DateTime(base.year, base.month, base.day);
     });
   }
 
@@ -437,6 +519,7 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
         createdAt: existing?.createdAt ?? DateTime.now(),
         startDate: _type == CounterType.countUp ? _startDate : null,
         targetDate: _type == CounterType.countdown ? _targetDate : null,
+        hasTargetTime: _type == CounterType.countdown && _hasTargetTime,
         currentValue: _type == CounterType.tally
             ? (int.tryParse(_tallyController.text) ?? 0)
             : 0,
@@ -449,6 +532,13 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
         enableNotification: _type == CounterType.countdown ? _enableNotification : false,
         notificationTiming: _notificationTiming,
         notificationSound: _notificationSound,
+        showYears: _type != CounterType.tally && _showYears,
+        showMonths: _type != CounterType.tally && _showMonths,
+        showWeeks: _type != CounterType.tally && _showWeeks,
+        showDays: _type != CounterType.tally && _showDays,
+        showHours: _type != CounterType.tally && _showHours && (_type != CounterType.countdown || _hasTargetTime),
+        showMinutes: _type != CounterType.tally && _showMinutes && (_type != CounterType.countdown || _hasTargetTime),
+        showSeconds: _type != CounterType.tally && _showSeconds && (_type != CounterType.countdown || _hasTargetTime),
       );
 
       if (existing == null) {
@@ -673,13 +763,48 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
                       onTap: _pickTargetDate,
                     ),
                     const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.access_time),
+                    SwitchListTile.adaptive(
+                      secondary: const Icon(Icons.access_time),
                       title: const Text('Target Time'),
-                      subtitle: Text(TimeOfDay.fromDateTime(_targetDate).format(context)),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _pickTargetTime,
+                      subtitle: Text(
+                        _hasTargetTime
+                            ? TimeOfDay.fromDateTime(_targetDate).format(context)
+                            : 'Optional · Off (Counts date & weeks only)',
+                      ),
+                      value: _hasTargetTime,
+                      activeThumbColor: _color,
+                      onChanged: (val) async {
+                        if (val) {
+                          setState(() {
+                            _hasTargetTime = true;
+                            _showHours = true;
+                            _showMinutes = true;
+                          });
+                          await _pickTargetTime();
+                        } else {
+                          setState(() {
+                            _hasTargetTime = false;
+                            _targetDate = DateTime(_targetDate.year, _targetDate.month, _targetDate.day);
+                            _showHours = false;
+                            _showMinutes = false;
+                            _showSeconds = false;
+                            if (!_showYears && !_showMonths && !_showWeeks && !_showDays) {
+                              _showDays = true;
+                            }
+                          });
+                        }
+                      },
                     ),
+                    if (_hasTargetTime) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const SizedBox(width: 24),
+                        title: const Text('Set Specific Time'),
+                        subtitle: Text(TimeOfDay.fromDateTime(_targetDate).format(context)),
+                        trailing: const Icon(Icons.edit_outlined),
+                        onTap: _pickTargetTime,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1008,6 +1133,112 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
                   ),
                 ],
               ),
+            ],
+
+            // Display Units & Smart Cascade Calculation
+            if (_type != CounterType.tally) ...[
+              const SizedBox(height: 20),
+              const Text(
+                'DISPLAY UNITS & SMART CALCULATION',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1.2),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Active Display Units',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Smart cascade automatically rolls down higher units when disabled (e.g. if Years is off, 2 years becomes 24 Months, or 104 Weeks, or 17,520 Hours). Supports up to 4+ digits auto-scaled.',
+                        style: TextStyle(fontSize: 12, color: Colors.white60),
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilterChip(
+                            label: const Text('Years (YRS)'),
+                            selected: _showYears,
+                            selectedColor: _color.withValues(alpha: 0.25),
+                            checkmarkColor: _color,
+                            onSelected: (val) => setState(() => _showYears = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Months (MOS)'),
+                            selected: _showMonths,
+                            selectedColor: _color.withValues(alpha: 0.25),
+                            checkmarkColor: _color,
+                            onSelected: (val) => setState(() => _showMonths = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Weeks (WKS)'),
+                            selected: _showWeeks,
+                            selectedColor: _color.withValues(alpha: 0.25),
+                            checkmarkColor: _color,
+                            onSelected: (val) => setState(() => _showWeeks = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Days (DAYS)'),
+                            selected: _showDays,
+                            selectedColor: _color.withValues(alpha: 0.25),
+                            checkmarkColor: _color,
+                            onSelected: (val) => setState(() => _showDays = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Hours (HRS)'),
+                            selected: _showHours,
+                            selectedColor: _color.withValues(alpha: 0.25),
+                            checkmarkColor: _color,
+                            onSelected: (val) {
+                              setState(() {
+                                _showHours = val;
+                                if (val && !_hasTargetTime && _type == CounterType.countdown) {
+                                  _hasTargetTime = true;
+                                }
+                              });
+                            },
+                          ),
+                          FilterChip(
+                            label: const Text('Minutes (MINS)'),
+                            selected: _showMinutes,
+                            selectedColor: _color.withValues(alpha: 0.25),
+                            checkmarkColor: _color,
+                            onSelected: (val) {
+                              setState(() {
+                                _showMinutes = val;
+                                if (val && !_hasTargetTime && _type == CounterType.countdown) {
+                                  _hasTargetTime = true;
+                                }
+                              });
+                            },
+                          ),
+                          FilterChip(
+                            label: const Text('Seconds (SECS)'),
+                            selected: _showSeconds,
+                            selectedColor: _color.withValues(alpha: 0.25),
+                            checkmarkColor: _color,
+                            onSelected: (val) {
+                              setState(() {
+                                _showSeconds = val;
+                                if (val && !_hasTargetTime && _type == CounterType.countdown) {
+                                  _hasTargetTime = true;
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ] else if (_type == CounterType.tally) ...[
               const Text(
                 'TALLY SETTINGS',
@@ -1182,14 +1413,57 @@ class _CounterEditorScreenState extends ConsumerState<CounterEditorScreen> {
     String displayTime;
     if (_type == CounterType.tally) {
       displayTime = _tallyController.text.isEmpty ? '0' : _tallyController.text;
-    } else if (_type == CounterType.countdown) {
-      final diff = _targetDate.difference(DateTime.now());
-      final d = diff.isNegative ? Duration.zero : diff;
-      displayTime = '${d.inDays}d  ${d.inHours.remainder(24).toString().padLeft(2, '0')}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
     } else {
-      final diff = DateTime.now().difference(_startDate);
-      final d = diff.isNegative ? Duration.zero : diff;
-      displayTime = '${d.inDays}d  ${d.inHours.remainder(24).toString().padLeft(2, '0')}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
+      final tempCounter = CounterModel(
+        id: 'preview',
+        title: title,
+        type: _type,
+        createdAt: DateTime.now(),
+        startDate: _startDate,
+        targetDate: _targetDate,
+        colorValue: _color.toARGB32(),
+        iconCodePoint: _icon.codePoint,
+        hasTargetTime: _type == CounterType.countdown && _hasTargetTime,
+        showYears: _showYears,
+        showMonths: _showMonths,
+        showWeeks: _showWeeks,
+        showDays: _showDays,
+        showHours: _showHours,
+        showMinutes: _showMinutes,
+        showSeconds: _showSeconds,
+      );
+      final breakdown = tempCounter.calculateBreakdown();
+      final dateParts = <String>[];
+      if (_showYears) dateParts.add('${breakdown.years}y');
+      if (_showMonths) dateParts.add('${breakdown.months}m');
+      if (_showWeeks) dateParts.add('${breakdown.weeks}w');
+      if (_showDays) dateParts.add('${breakdown.days}d');
+
+      final timeParts = <String>[];
+      if (_type != CounterType.countdown || _hasTargetTime) {
+        if (_showHours) {
+          timeParts.add(breakdown.hours >= 100 ? '${breakdown.hours}' : breakdown.hours.toString().padLeft(2, '0'));
+        }
+        if (_showMinutes) {
+          timeParts.add(breakdown.minutes >= 100 ? '${breakdown.minutes}' : breakdown.minutes.toString().padLeft(2, '0'));
+        }
+        if (_showSeconds) {
+          timeParts.add(breakdown.seconds >= 100 ? '${breakdown.seconds}' : breakdown.seconds.toString().padLeft(2, '0'));
+        }
+      }
+
+      final dateStr = dateParts.join(' ');
+      final timeStr = timeParts.join(':');
+
+      if (dateStr.isNotEmpty && timeStr.isNotEmpty) {
+        displayTime = '$dateStr  $timeStr';
+      } else if (dateStr.isNotEmpty) {
+        displayTime = dateStr;
+      } else if (timeStr.isNotEmpty) {
+        displayTime = timeStr;
+      } else {
+        displayTime = _type == CounterType.countdown && !_hasTargetTime ? '0d' : '0d  00:00:00';
+      }
     }
 
     return Card(

@@ -103,6 +103,10 @@ class NotificationService {
     final now = DateTime.now();
 
     DateTime notifyTime = target;
+    if (!counter.hasTargetTime) {
+      // Default to 9:00 AM on the target date for all-day events without a specific time
+      notifyTime = DateTime(target.year, target.month, target.day, 9, 0);
+    }
     String timingPrefix = '';
     if (counter.notificationTiming == 'dayBefore') {
       notifyTime = target.subtract(const Duration(days: 1));

@@ -95,6 +95,130 @@ void main() {
       expect(restored.targetValue, counter.targetValue);
       expect(restored.colorValue, counter.colorValue);
       expect(restored.description, counter.description);
+      expect(restored.showWeeks, isFalse);
+      expect(restored.showYears, isFalse);
+      expect(restored.showMonths, isFalse);
+
+      final pregnancyCounter = counter.copyWith(showWeeks: true, showYears: true, showMonths: true);
+      final pregnancyJson = pregnancyCounter.toJson();
+      final restoredPregnancy = CounterModel.fromJson(pregnancyJson);
+      expect(restoredPregnancy.showWeeks, isTrue);
+      expect(restoredPregnancy.showYears, isTrue);
+      expect(restoredPregnancy.showMonths, isTrue);
+    });
+
+    test('Smart cascade calculations: Years, Months, Weeks, Days, Hours, Mins, Secs', () {
+      final now = DateTime(2026, 1, 1, 0, 0);
+      final twoYearsLater = DateTime(2028, 1, 1, 0, 0);
+
+      // Case 1: Both Years and Months enabled -> 2 Years, 0 Months
+      final counterYearsMonths = CounterModel(
+        id: 'c_ym',
+        title: 'Two Years',
+        type: CounterType.countdown,
+        createdAt: now,
+        targetDate: twoYearsLater,
+        colorValue: 0xFFFFD400,
+        iconCodePoint: 0xe8b5,
+        showYears: true,
+        showMonths: true,
+        showDays: false,
+        showHours: false,
+        showMinutes: false,
+        showSeconds: false,
+      );
+      final b1 = counterYearsMonths.calculateBreakdown(at: now);
+      expect(b1.years, 2);
+      expect(b1.months, 0);
+
+      // Case 2: Year NOT selected, Month selected -> 24 Months!
+      final counterMonthsOnly = counterYearsMonths.copyWith(
+        showYears: false,
+        showMonths: true,
+      );
+      final b2 = counterMonthsOnly.calculateBreakdown(at: now);
+      expect(b2.years, 0);
+      expect(b2.months, 24);
+
+      // Case 3: Year NOT selected, Month NOT selected, Weeks selected -> 104 Weeks!
+      final counterWeeksOnly = counterYearsMonths.copyWith(
+        showYears: false,
+        showMonths: false,
+        showWeeks: true,
+      );
+      final b3 = counterWeeksOnly.calculateBreakdown(at: now);
+      expect(b3.years, 0);
+      expect(b3.months, 0);
+      expect(b3.weeks, 104);
+
+      // Case 4: No date units selected, Hours selected -> absorbs into hours (e.g. 48 hours for 2 days)
+      final twoDaysLater = now.add(const Duration(days: 2));
+      final counterHours = CounterModel(
+        id: 'c_h',
+        title: 'Two Days in Hours',
+        type: CounterType.countdown,
+        createdAt: now,
+        targetDate: twoDaysLater,
+        colorValue: 0xFFFFD400,
+        iconCodePoint: 0xe8b5,
+        showYears: false,
+        showMonths: false,
+        showWeeks: false,
+        showDays: false,
+        showHours: true,
+        showMinutes: true,
+        showSeconds: true,
+      );
+      final b4 = counterHours.calculateBreakdown(at: now);
+      expect(b4.hours, 48);
+      expect(b4.minutes, 0);
+      expect(b4.seconds, 0);
+
+      // Case 5: Only Seconds selected -> 3600 seconds for 1 hour
+      final oneHourLater = now.add(const Duration(hours: 1));
+      final counterSeconds = CounterModel(
+        id: 'c_s',
+        title: 'Seconds Only',
+        type: CounterType.countdown,
+        createdAt: now,
+        targetDate: oneHourLater,
+        colorValue: 0xFFFFD400,
+        iconCodePoint: 0xe8b5,
+        showYears: false,
+        showMonths: false,
+        showWeeks: false,
+        showDays: false,
+        showHours: false,
+        showMinutes: false,
+        showSeconds: true,
+      );
+      final b5 = counterSeconds.calculateBreakdown(at: now);
+      expect(b5.seconds, 3600);
+    });
+
+    test('Pregnancy emoji detection and weeks calculation', () {
+      final now = DateTime.now();
+      final futureDate = now.add(const Duration(days: 171, hours: 5));
+      final counter = CounterModel(
+        id: 'preg_1',
+        title: 'Baby Pregnancy Due Date',
+        type: CounterType.countdown,
+        createdAt: now,
+        targetDate: futureDate,
+        colorValue: 0xFFFF8DA1,
+        iconCodePoint: 0xe8b5,
+        showWeeks: true,
+      );
+
+      // Emoji should detect pregnancy
+      expect(counter.eventEmoji, '🤰');
+
+      // Weeks and days calculation verification
+      final totalDays = counter.duration.inDays;
+      final weeks = totalDays ~/ 7;
+      final days = totalDays % 7;
+      expect(weeks, 24);
+      expect(days, 3);
     });
 
     test('Repeat interval yearly rollover for anniversaries', () {
@@ -162,6 +286,61 @@ void main() {
         repeatCustomValue: 2,
       );
       expect(customHoursCounter.effectiveTargetDate.isAfter(now), isTrue);
+    });
+
+    test('Optional Target Time (date-only events and weeks/days calculation)', () {
+      final realNow = DateTime.now();
+      final now = DateTime(realNow.year, realNow.month, realNow.day, 15, 30); // 3:30 PM today
+      final targetDate = DateTime(realNow.year, realNow.month, realNow.day).add(const Duration(days: 14)); // exact 14 calendar days away
+
+      // When hasTargetTime is false: exact 2 weeks without hours/mins interference
+      final dateOnlyCounter = CounterModel(
+        id: 'date_only_1',
+        title: 'Baby Milestone',
+        type: CounterType.countdown,
+        createdAt: now,
+        targetDate: targetDate,
+        colorValue: 0xFFFF8DA1,
+        iconCodePoint: 0xe8b5,
+        hasTargetTime: false,
+        showWeeks: true,
+        showDays: true,
+        showHours: false,
+        showMinutes: false,
+        showSeconds: false,
+      );
+
+      expect(dateOnlyCounter.hasTargetTime, isFalse);
+
+      final breakdown = dateOnlyCounter.calculateBreakdown(at: now);
+      expect(breakdown.weeks, 2);
+      expect(breakdown.days, 0);
+      expect(breakdown.hours, 0);
+      expect(breakdown.minutes, 0);
+      expect(breakdown.seconds, 0);
+
+      // Duration in days should be exact 14 calendar days
+      expect(dateOnlyCounter.duration.inDays, 14);
+
+      // Serialization round-trip
+      final json = dateOnlyCounter.toJson();
+      expect(json['hasTargetTime'], isFalse);
+      final restored = CounterModel.fromJson(json);
+      expect(restored.hasTargetTime, isFalse);
+
+      // On the day of event, isCompleted is false (it's the event day!)
+      final onEventDay = DateTime(targetDate.year, targetDate.month, targetDate.day, 10, 0);
+      expect(dateOnlyCounter.calculateBreakdown(at: onEventDay).weeks, 0);
+      expect(dateOnlyCounter.calculateBreakdown(at: onEventDay).days, 0);
+
+      // Explicit target time enabled
+      final specificTimeCounter = dateOnlyCounter.copyWith(
+        hasTargetTime: true,
+        showHours: true,
+        showMinutes: true,
+      );
+      expect(specificTimeCounter.hasTargetTime, isTrue);
+      expect(specificTimeCounter.toJson()['hasTargetTime'], isTrue);
     });
   });
 }

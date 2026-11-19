@@ -33,14 +33,28 @@ Whenever making changes to this codebase, you **must** adhere to these invariant
 - Each counter's widget styling (background color, accent, font size, layout, unit visibility) is stored independently under its own storage key.
 - Duplicating/cloning a counter copies the design, but creating a fresh counter must **never** inherit another counter's custom design.
 
-### 3. Battery Efficiency & Refresh Cadence
+### 3. Smart Breakdown & Optional Target Time
+- **Date Normalization**: When `hasTargetTime == false` (e.g. pregnancy weeks/days countdowns, birthdays), current and target dates must be normalized to start-of-day boundaries (`DateTime(y, m, d)`) to avoid fractional-day distortion.
+- **Smart Cascade Math**: Unselected higher units cascade down to active lower units (Years -> Months -> Weeks -> Days -> Hours -> Minutes -> Seconds).
+- **Time Unit Concealment**: When `hasTargetTime == false`, hours, minutes, and seconds must be hidden (`View.GONE`) and excluded from `visibleUnitsCount` so date units occupy the full widget width with auto-adjusted font scaling.
+- **4-Digit Capacity**: Support values up to 4 digits (e.g. `104 WKS`, `730 DAYS`) across both native widgets and Widget Studio preview with dynamic auto-scaling font sizing.
+
+### 4. Battery Efficiency & Refresh Cadence
 - Home screen widgets must not poll aggressively.
 - Default refresh is 1 minute (`60,000ms`). Sub-minute intervals (e.g. 1s) must display background battery drain warnings to the user.
 
-### 4. Binary Footprint (<25MB)
+### 5. Binary Footprint (<25MB)
 - MultiCounter must remain lightweight and fast.
 - Releases are built using split APKs (`flutter build apk --split-per-abi --release --no-tree-shake-icons`).
 - ProGuard rules (`android/app/proguard-rules.pro`) strip unused symbols. Each ABI APK must stay below 25MB.
+
+### 6. Counter Deletion & Widget Lifecycle
+- Third-party apps cannot programmatically remove widgets from the Android launcher (Android OS security restriction).
+- When a counter is deleted:
+  - `HomeScreenWidgetService.handleCounterDeleted` cleans up isolated design preferences.
+  - Any widget bound to that counter is transitioned to `isDeleted: true` ("🗑️ Counter Deleted" / "Tap to select a counter or remove"), and all digits/labels are hidden.
+  - Background refresh alarms for that widget are immediately cancelled (`cancelWidgetRefresh`) to prevent battery waste.
+  - Tapping the deleted widget launches `WidgetConfigureActivity` so the user can reassign an active counter or remove the widget from their launcher.
 
 ---
 
@@ -48,5 +62,5 @@ Whenever making changes to this codebase, you **must** adhere to these invariant
 
 Before submitting or pushing any changes:
 1. Run `flutter analyze` — 0 errors, 0 warnings.
-2. Run `flutter test` — All tests must pass (16+ tests across `counter_model_test.dart`, `accessibility_and_duplicate_test.dart`, `widget_navigation_test.dart`, `widget_test.dart`).
+2. Run `flutter test` — All tests must pass (20+ tests across `counter_model_test.dart`, `accessibility_and_duplicate_test.dart`, `widget_navigation_test.dart`, `widget_test.dart`).
 3. Ensure git branch rules and signed commit requirements are respected.

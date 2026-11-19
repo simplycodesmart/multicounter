@@ -16,6 +16,12 @@ MultiCounter uses a two-row horizontal layout in [`multicounter_widget.xml`](fil
 ```text
 widget_time_container (vertical LinearLayout, gravity="center")
   ├── widget_digits_row (horizontal LinearLayout, baselineAligned="false")
+  │     ├── widget_years (0dp, weight=1)
+  │     ├── widget_sep_years (12dp fixed width, "·")
+  │     ├── widget_months (0dp, weight=1)
+  │     ├── widget_sep_months (12dp fixed width, "·")
+  │     ├── widget_weeks (0dp, weight=1)
+  │     ├── widget_sep_weeks (12dp fixed width, "·")
   │     ├── widget_days (0dp, weight=1)
   │     ├── widget_sep_days (12dp fixed width, "·")
   │     ├── widget_hours (0dp, weight=1)
@@ -25,6 +31,12 @@ widget_time_container (vertical LinearLayout, gravity="center")
   │     └── widget_seconds (0dp, weight=1)
   │
   └── widget_labels_container (horizontal LinearLayout, baselineAligned="false", layout_marginTop="2dp")
+        ├── widget_years_label (0dp, weight=1, "YRS")
+        ├── widget_sep_years_spacer (12dp fixed width, empty text, 1dp height)
+        ├── widget_months_label (0dp, weight=1, "MOS")
+        ├── widget_sep_months_spacer (12dp fixed width, empty text, 1dp height)
+        ├── widget_weeks_label (0dp, weight=1, "WKS")
+        ├── widget_sep_weeks_spacer (12dp fixed width, empty text, 1dp height)
         ├── widget_days_label (0dp, weight=1, "DAYS")
         ├── widget_sep_days_spacer (12dp fixed width, empty text, 1dp height)
         ├── widget_hours_label (0dp, weight=1, "HRS")
@@ -55,8 +67,22 @@ When reviewing or testing widget changes, verify the following:
 
 4. **1:1 Flutter Studio Parity**:
    - Compare [`_WidgetPreview`](file:///f:/project/multicounter/lib/features/widgets/widget_studio_screen.dart) with the native layout.
-   - Ensure color contrast, font scaling, and separator widths (`12px` and `14px`) match identically.
+   - Ensure color contrast, font scaling, separator widths (`12px` and `14px`), and dynamic unit visibility match identically.
 
-5. **MethodChannel IPC & Persistence**:
+5. **Optional Target Time & Date-Only Concealment**:
+   - When `hasTargetTime == false` on countdown events, time units (`hours`, `mins`, `secs`) must be set to `View.GONE` and excluded from `visibleUnitsCount`.
+   - Remaining date units (e.g., `28 WKS 4 DAYS`) must span the full available width with dynamic auto-adjusted sizing.
+
+6. **4-Digit Capacity**:
+   - Support values up to 4 digits (e.g. `104 WKS`, `730 DAYS`, `9999`) without truncation or wrapping.
+   - Dynamic font size calculation scales down proportionally based on max digit length.
+
+7. **MethodChannel IPC & Persistence**:
    - Method channel `multicounter/widget_config` routes calls between Flutter and `MainActivity.kt`.
    - Config is persisted in `SharedPreferences` under `multicounter.widget_studio.v1.widget.<id>`.
+
+8. **Graceful Counter Deletion**:
+   - When a counter is deleted in the app, any home-screen widget bound to it transitions to `isDeleted: true` ("🗑️ Counter Deleted" / "Tap to select a counter or remove").
+   - Digits, labels, and spacers are hidden (`View.GONE`).
+   - Background refresh alarms for that widget are cancelled immediately (`cancelWidgetRefresh`) to eliminate battery drain.
+   - Tapping the deleted widget opens `WidgetConfigureActivity`, letting the user choose another counter or remove the widget.

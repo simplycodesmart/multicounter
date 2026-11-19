@@ -21,10 +21,13 @@ class HomeScreenWidgetService {
     'background': 0xFF171717,
     'accent': counter.colorValue.toSigned(32),
     'fontSize': 25.0,
-    'showDays': true,
-    'showHours': true,
-    'showMinutes': true,
-    'showSeconds': true,
+    'showYears': counter.showYears,
+    'showMonths': counter.showMonths,
+    'showWeeks': counter.showWeeks,
+    'showDays': counter.showDays,
+    'showHours': counter.showHours,
+    'showMinutes': counter.showMinutes,
+    'showSeconds': counter.showSeconds,
     'showLabels': true,
     'showTitle': true,
     'refreshIntervalMs': 60000,
@@ -149,12 +152,20 @@ class HomeScreenWidgetService {
         'counterId': counter.id,
         'title': counter.title,
         'type': counter.type.name,
-        'targetEpoch': counter.targetDate?.millisecondsSinceEpoch ?? 0,
+        'targetEpoch': counter.effectiveTargetDate.millisecondsSinceEpoch,
         'createdEpoch': counter.effectiveStartDate.millisecondsSinceEpoch,
         'currentValue': counter.currentValue,
         'targetValue': counter.targetValue ?? 0,
         'accent': counter.colorValue.toSigned(32),
         'iconEmoji': counter.eventEmoji,
+        'showYears': counter.showYears,
+        'showMonths': counter.showMonths,
+        'showWeeks': counter.showWeeks,
+        'showDays': counter.showDays,
+        'showHours': counter.showHours,
+        'showMinutes': counter.showMinutes,
+        'showSeconds': counter.showSeconds,
+        'hasTargetTime': counter.hasTargetTime,
       });
     } catch (error, stackTrace) {
       debugPrint('Counter widget refresh failed: $error');
@@ -167,6 +178,44 @@ class HomeScreenWidgetService {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     for (final counter in counters) {
       await syncCounter(counter);
+    }
+  }
+
+  /// Gracefully updates any installed widgets that were bound to a deleted counter.
+  /// Sets their widget status to "Counter Deleted", hides digits, stops refresh alarms,
+  /// and cleans up stored design preferences.
+  static Future<void> handleCounterDeleted(String counterId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Remove isolated counter design
+      await prefs.remove(counterDesignKey(counterId));
+
+      // Update stored widget designs in Flutter SharedPreferences
+      final widgetIds = await getInstalledWidgetIds();
+      for (final widgetId in widgetIds) {
+        final storageKey = widgetDesignKey(widgetId);
+        final raw = prefs.getString(storageKey);
+        if (raw == null) continue;
+        try {
+          final design = jsonDecode(raw) as Map<String, dynamic>;
+          if (design['counterId'] == counterId) {
+            design['counterId'] = '';
+            design['isDeleted'] = true;
+            design['title'] = 'Counter Deleted';
+            await prefs.setString(storageKey, jsonEncode(design));
+          }
+        } catch (_) {}
+      }
+
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+      // Notify native Android widget manager to mark widgets deleted and cancel alarms
+      await _channel.invokeMethod<bool>('counterDeleted', {
+        'counterId': counterId,
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Counter deletion widget sync failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
@@ -193,23 +242,39 @@ class HomeScreenWidgetService {
         args['assignTitle'] = assignCounter.title;
         args['assignType'] = assignCounter.type.name;
         args['assignTargetEpoch'] =
-            assignCounter.targetDate?.millisecondsSinceEpoch ?? 0;
+            assignCounter.effectiveTargetDate.millisecondsSinceEpoch;
         args['assignCreatedEpoch'] =
             assignCounter.effectiveStartDate.millisecondsSinceEpoch;
         args['assignCurrentValue'] = assignCounter.currentValue;
         args['assignIconEmoji'] = assignCounter.eventEmoji;
+        args['assignShowYears'] = assignCounter.showYears;
+        args['assignShowMonths'] = assignCounter.showMonths;
+        args['assignShowWeeks'] = assignCounter.showWeeks;
+        args['assignShowDays'] = assignCounter.showDays;
+        args['assignShowHours'] = assignCounter.showHours;
+        args['assignShowMinutes'] = assignCounter.showMinutes;
+        args['assignShowSeconds'] = assignCounter.showSeconds;
+        args['assignHasTargetTime'] = assignCounter.hasTargetTime;
       }
       if (fallbackCounter != null) {
         args['fallbackCounterId'] = fallbackCounter.id;
         args['fallbackTitle'] = fallbackCounter.title;
         args['fallbackType'] = fallbackCounter.type.name;
         args['fallbackTargetEpoch'] =
-            fallbackCounter.targetDate?.millisecondsSinceEpoch ?? 0;
+            fallbackCounter.effectiveTargetDate.millisecondsSinceEpoch;
         args['fallbackCreatedEpoch'] =
             fallbackCounter.effectiveStartDate.millisecondsSinceEpoch;
         args['fallbackCurrentValue'] = fallbackCounter.currentValue;
         args['fallbackAccent'] = fallbackCounter.colorValue.toSigned(32);
         args['fallbackIconEmoji'] = fallbackCounter.eventEmoji;
+        args['fallbackShowYears'] = fallbackCounter.showYears;
+        args['fallbackShowMonths'] = fallbackCounter.showMonths;
+        args['fallbackShowWeeks'] = fallbackCounter.showWeeks;
+        args['fallbackShowDays'] = fallbackCounter.showDays;
+        args['fallbackShowHours'] = fallbackCounter.showHours;
+        args['fallbackShowMinutes'] = fallbackCounter.showMinutes;
+        args['fallbackShowSeconds'] = fallbackCounter.showSeconds;
+        args['fallbackHasTargetTime'] = fallbackCounter.hasTargetTime;
       }
 
       final result = await _channel.invokeMethod<bool>(
@@ -254,7 +319,8 @@ class HomeScreenWidgetService {
       'counterId': counter.id,
       'iconEmoji': counter.eventEmoji,
       'type': counter.type.name,
-      'targetEpoch': counter.targetDate?.millisecondsSinceEpoch ?? 0,
+      'hasTargetTime': counter.hasTargetTime,
+      'targetEpoch': counter.effectiveTargetDate.millisecondsSinceEpoch,
       'createdEpoch': counter.effectiveStartDate.millisecondsSinceEpoch,
       'currentValue': counter.currentValue,
       'targetValue': counter.targetValue ?? 0,
@@ -264,10 +330,13 @@ class HomeScreenWidgetService {
       'accent': rawAccent.toSigned(32),
       'fontSize': (design['fontSize'] as num?)?.toDouble() ?? 25.0,
       'showTitle': design['showTitle'] as bool? ?? true,
-      'showDays': design['showDays'] as bool? ?? true,
-      'showHours': design['showHours'] as bool? ?? true,
-      'showMinutes': design['showMinutes'] as bool? ?? true,
-      'showSeconds': design['showSeconds'] as bool? ?? true,
+      'showYears': design['showYears'] as bool? ?? counter.showYears,
+      'showMonths': design['showMonths'] as bool? ?? counter.showMonths,
+      'showWeeks': design['showWeeks'] as bool? ?? counter.showWeeks,
+      'showDays': design['showDays'] as bool? ?? counter.showDays,
+      'showHours': design['showHours'] as bool? ?? counter.showHours,
+      'showMinutes': design['showMinutes'] as bool? ?? counter.showMinutes,
+      'showSeconds': design['showSeconds'] as bool? ?? counter.showSeconds,
       'showLabels': design['showLabels'] as bool? ?? true,
       'layout': design['layout'] as String? ?? 'Classic',
       'size': design['size'] as String? ?? 'Medium',

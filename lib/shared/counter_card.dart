@@ -64,13 +64,44 @@ class CounterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final d = counter.duration;
     final isDone = counter.isCompleted;
     final theme = Theme.of(context);
 
-    final timeString = counter.type == CounterType.tally
-        ? '${counter.currentValue}'
-        : '${d.inDays}d  ${d.inHours.remainder(24).toString().padLeft(2, '0')}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
+    final String timeString;
+    if (counter.type == CounterType.tally) {
+      timeString = '${counter.currentValue}';
+    } else {
+      final breakdown = counter.calculateBreakdown();
+      final dateParts = <String>[];
+      if (counter.showYears) dateParts.add('${breakdown.years}y');
+      if (counter.showMonths) dateParts.add('${breakdown.months}m');
+      if (counter.showWeeks) dateParts.add('${breakdown.weeks}w');
+      if (counter.showDays) dateParts.add('${breakdown.days}d');
+
+      final timeParts = <String>[];
+      if (counter.showHours) {
+        timeParts.add(breakdown.hours >= 100 ? '${breakdown.hours}' : breakdown.hours.toString().padLeft(2, '0'));
+      }
+      if (counter.showMinutes) {
+        timeParts.add(breakdown.minutes >= 100 ? '${breakdown.minutes}' : breakdown.minutes.toString().padLeft(2, '0'));
+      }
+      if (counter.showSeconds) {
+        timeParts.add(breakdown.seconds >= 100 ? '${breakdown.seconds}' : breakdown.seconds.toString().padLeft(2, '0'));
+      }
+
+      final dateStr = dateParts.join(' ');
+      final timeStr = timeParts.join(':');
+
+      if (dateStr.isNotEmpty && timeStr.isNotEmpty) {
+        timeString = '$dateStr  $timeStr';
+      } else if (dateStr.isNotEmpty) {
+        timeString = dateStr;
+      } else if (timeStr.isNotEmpty) {
+        timeString = timeStr;
+      } else {
+        timeString = '0d  00:00:00';
+      }
+    }
 
     return Semantics(
       label: '${counter.title}, ${counter.type.name} counter. ${counter.type == CounterType.tally ? "Count: ${counter.currentValue}" : "Time: $timeString"}. ${isDone ? "Completed!" : ""}',
@@ -266,7 +297,9 @@ class CounterCard extends StatelessWidget {
               const SizedBox(height: 6),
               if (counter.type == CounterType.countdown && counter.targetDate != null)
                 Text(
-                  'Target: ${DateFormat.yMMMd().add_jm().format(counter.targetDate!)}',
+                  counter.hasTargetTime
+                      ? 'Target: ${DateFormat.yMMMd().add_jm().format(counter.targetDate!)}'
+                      : 'Target: ${DateFormat.yMMMd().format(counter.targetDate!)}',
                   style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6)),
                 )
               else if (counter.type == CounterType.countUp)

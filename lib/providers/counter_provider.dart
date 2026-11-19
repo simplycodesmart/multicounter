@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,9 +29,6 @@ class ActiveWidgetCounterNotifier extends Notifier<String?> {
 }
 
 class CountersNotifier extends AsyncNotifier<List<CounterModel>> {
-  static const _widgetStoragePrefix =
-      'multicounter.widget_studio.v1.widget.';
-
   CounterRepository get _repository =>
       ref.read(counterRepositoryProvider);
 
@@ -99,52 +94,9 @@ class CountersNotifier extends AsyncNotifier<List<CounterModel>> {
     await _repository.save(updated);
     await NotificationService.instance.cancelForCounter(id);
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final widgetIds =
-          await HomeScreenWidgetService.getInstalledWidgetIds();
-
-      if (updated.isEmpty) {
-        debugPrint('No counters remain for home-screen widgets.');
-        return;
-      }
-
-      final replacement = updated.first;
-
-      for (final widgetId in widgetIds) {
-        final storageKey = '$_widgetStoragePrefix$widgetId';
-        final raw = prefs.getString(storageKey);
-
-        if (raw == null) continue;
-
-        try {
-          final design = jsonDecode(raw) as Map<String, dynamic>;
-
-          if (design['counterId'] != id) continue;
-
-          // Assign the next available counter to this widget.
-          design['counterId'] = replacement.id;
-
-          await prefs.setString(
-            storageKey,
-            jsonEncode(design),
-          );
-
-          await HomeScreenWidgetService.sync(
-            widgetId: widgetId,
-            counter: replacement,
-            design: design,
-          );
-        } catch (error) {
-          debugPrint(
-            'Could not update widget $widgetId after deletion: $error',
-          );
-        }
-      }
-    } catch (error, stackTrace) {
-      debugPrint('Widget deletion sync failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
-    }
+    // Gracefully handle widgets bound to this counter: mark them deleted,
+    // stop background refresh alarms, and remove isolated preferences.
+    await HomeScreenWidgetService.handleCounterDeleted(id);
   }
 
   Future<void> loadSamples() async {
@@ -200,6 +152,7 @@ class CountersNotifier extends AsyncNotifier<List<CounterModel>> {
       createdAt: DateTime.now(),
       startDate: original.startDate,
       targetDate: original.targetDate,
+      hasTargetTime: original.hasTargetTime,
       currentValue: original.currentValue,
       colorValue: original.colorValue,
       iconCodePoint: original.iconCodePoint,
@@ -211,6 +164,13 @@ class CountersNotifier extends AsyncNotifier<List<CounterModel>> {
       enableNotification: original.enableNotification,
       notificationTiming: original.notificationTiming,
       notificationSound: original.notificationSound,
+      showYears: original.showYears,
+      showMonths: original.showMonths,
+      showWeeks: original.showWeeks,
+      showDays: original.showDays,
+      showHours: original.showHours,
+      showMinutes: original.showMinutes,
+      showSeconds: original.showSeconds,
     );
 
     await addCounter(cloned);

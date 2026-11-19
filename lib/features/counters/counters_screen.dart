@@ -265,9 +265,24 @@ class _CountersScreenState extends ConsumerState<CountersScreen> {
                                   );
                                 }
                               },
-                              onDelete: () => ref
-                                  .read(countersProvider.notifier)
-                                  .removeCounter(counter.id),
+                              onDelete: () async {
+                                final hasWidget = await HomeScreenWidgetService.isCounterWidgetInstalled(counter.id);
+                                await ref
+                                    .read(countersProvider.notifier)
+                                    .removeCounter(counter.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        hasWidget
+                                            ? 'Counter "${counter.title}" deleted. Home-screen widget set to deleted.'
+                                            : 'Counter "${counter.title}" deleted.',
+                                      ),
+                                      duration: const Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
+                              },
                               onIncrement: counter.type == CounterType.tally
                                   ? () => ref
                                       .read(countersProvider.notifier)
