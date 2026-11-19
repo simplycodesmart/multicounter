@@ -48,11 +48,19 @@ Whenever making changes to this codebase, you **must** adhere to these invariant
 - Releases are built using split APKs (`flutter build apk --split-per-abi --release --no-tree-shake-icons`).
 - ProGuard rules (`android/app/proguard-rules.pro`) strip unused symbols. Each ABI APK must stay below 25MB.
 
+### 6. Counter Deletion & Widget Lifecycle
+- Third-party apps cannot programmatically remove widgets from the Android launcher (Android OS security restriction).
+- When a counter is deleted:
+  - `HomeScreenWidgetService.handleCounterDeleted` cleans up isolated design preferences.
+  - Any widget bound to that counter is transitioned to `isDeleted: true` ("🗑️ Counter Deleted" / "Tap to select a counter or remove"), and all digits/labels are hidden.
+  - Background refresh alarms for that widget are immediately cancelled (`cancelWidgetRefresh`) to prevent battery waste.
+  - Tapping the deleted widget launches `WidgetConfigureActivity` so the user can reassign an active counter or remove the widget from their launcher.
+
 ---
 
 ## 🧪 Testing & Verification Protocol
 
 Before submitting or pushing any changes:
 1. Run `flutter analyze` — 0 errors, 0 warnings.
-2. Run `flutter test` — All tests must pass (19+ tests across `counter_model_test.dart`, `accessibility_and_duplicate_test.dart`, `widget_navigation_test.dart`, `widget_test.dart`).
+2. Run `flutter test` — All tests must pass (20+ tests across `counter_model_test.dart`, `accessibility_and_duplicate_test.dart`, `widget_navigation_test.dart`, `widget_test.dart`).
 3. Ensure git branch rules and signed commit requirements are respected.

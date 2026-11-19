@@ -99,6 +99,7 @@ MultiCounter features a robust native Android widget engine (`MultiCounterWidget
 | **Launcher Drawer Integration** | 📲 | Drag widgets directly from your launcher drawer; interactive picker lets you choose which counter to track. |
 | **Responsive Typography** | 📐 | Auto-scales main counter digits based on actual widget dimensions and orientation on your launcher. |
 | **Goal Reached Banner** | 🎉 | Switches to celebratory status with `"EVENT ARRIVED! 🎉"` or `"GOAL REACHED! 🎉"` upon milestone completion. |
+| **Graceful Deletion Handling** | 🗑️ | If a counter is deleted, its widget automatically cancels battery alarms and shows `"Counter Deleted"`, with one-tap counter reassignment. |
 | **Tap to Launch** | 🚀 | Tapping any widget opens directly to that specific counter in the app. |
 
 ---

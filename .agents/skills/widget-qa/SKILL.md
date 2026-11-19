@@ -80,3 +80,9 @@ When reviewing or testing widget changes, verify the following:
 7. **MethodChannel IPC & Persistence**:
    - Method channel `multicounter/widget_config` routes calls between Flutter and `MainActivity.kt`.
    - Config is persisted in `SharedPreferences` under `multicounter.widget_studio.v1.widget.<id>`.
+
+8. **Graceful Counter Deletion**:
+   - When a counter is deleted in the app, any home-screen widget bound to it transitions to `isDeleted: true` ("🗑️ Counter Deleted" / "Tap to select a counter or remove").
+   - Digits, labels, and spacers are hidden (`View.GONE`).
+   - Background refresh alarms for that widget are cancelled immediately (`cancelWidgetRefresh`) to eliminate battery drain.
+   - Tapping the deleted widget opens `WidgetConfigureActivity`, letting the user choose another counter or remove the widget.

@@ -245,6 +245,66 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "counterDeleted" -> {
+                    try {
+                        val counterId = call.argument<String>("counterId")
+                        if (counterId.isNullOrBlank()) {
+                            result.success(false)
+                            return@setMethodCallHandler
+                        }
+
+                        val manager = AppWidgetManager.getInstance(this)
+                        val provider = ComponentName(
+                            this,
+                            MultiCounterWidgetProvider::class.java
+                        )
+                        val ids = manager.getAppWidgetIds(provider)
+                        val prefs = getSharedPreferences(
+                            MultiCounterWidgetProvider.PREFS_NAME,
+                            Context.MODE_PRIVATE
+                        )
+                        val editor = prefs.edit()
+                        var changed = false
+
+                        for (id in ids) {
+                            val key = MultiCounterWidgetProvider.configKey(id)
+                            val raw = prefs.getString(key, null)
+                            if (raw.isNullOrBlank()) continue
+
+                            val config = try {
+                                JSONObject(raw)
+                            } catch (_: Exception) {
+                                continue
+                            }
+
+                            if (config.optString("counterId") == counterId) {
+                                config.put("isDeleted", true)
+                                config.put("counterId", "")
+                                config.put("title", "Counter Deleted")
+                                config.put("iconEmoji", "🗑️")
+                                config.put("targetEpoch", 0L)
+                                config.put("createdEpoch", 0L)
+                                config.put("currentValue", 0L)
+                                config.put("targetValue", 0L)
+                                editor.putString(key, config.toString())
+                                changed = true
+
+                                // Cancel background refresh alarm for this widget to stop battery drain
+                                MultiCounterWidgetProvider.cancelWidgetRefresh(this, id)
+                            }
+                        }
+
+                        if (changed) {
+                            editor.commit()
+                            MultiCounterWidgetProvider.updateAllWidgets(this)
+                        }
+
+                        result.success(true)
+                    } catch (error: Exception) {
+                        result.error("COUNTER_DELETED_FAILED", error.message, null)
+                    }
+                }
+
                 "requestPinWidget" -> {
                     try {
                         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -581,6 +641,7 @@ class MainActivity : FlutterActivity() {
                             val item = mapOf<String, Any?>(
                                 "widgetId" to id,
                                 "counterId" to config.optString("counterId", ""),
+                                "isDeleted" to config.optBoolean("isDeleted", false),
                                 "title" to config.optString("title", "MultiCounter"),
                                 "type" to config.optString("type", "countdown"),
                                 "targetEpoch" to config.optLong("targetEpoch", 0L),

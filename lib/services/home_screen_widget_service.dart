@@ -181,6 +181,44 @@ class HomeScreenWidgetService {
     }
   }
 
+  /// Gracefully updates any installed widgets that were bound to a deleted counter.
+  /// Sets their widget status to "Counter Deleted", hides digits, stops refresh alarms,
+  /// and cleans up stored design preferences.
+  static Future<void> handleCounterDeleted(String counterId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Remove isolated counter design
+      await prefs.remove(counterDesignKey(counterId));
+
+      // Update stored widget designs in Flutter SharedPreferences
+      final widgetIds = await getInstalledWidgetIds();
+      for (final widgetId in widgetIds) {
+        final storageKey = widgetDesignKey(widgetId);
+        final raw = prefs.getString(storageKey);
+        if (raw == null) continue;
+        try {
+          final design = jsonDecode(raw) as Map<String, dynamic>;
+          if (design['counterId'] == counterId) {
+            design['counterId'] = '';
+            design['isDeleted'] = true;
+            design['title'] = 'Counter Deleted';
+            await prefs.setString(storageKey, jsonEncode(design));
+          }
+        } catch (_) {}
+      }
+
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+      // Notify native Android widget manager to mark widgets deleted and cancel alarms
+      await _channel.invokeMethod<bool>('counterDeleted', {
+        'counterId': counterId,
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Counter deletion widget sync failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
   /// Updates all installed widgets with the given design options.
   /// If [widgetId] is provided, updates only that widget.
   /// If [assignCounter] is provided, assigns that counter directly to the widget.

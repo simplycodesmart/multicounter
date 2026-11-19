@@ -289,8 +289,9 @@ void main() {
     });
 
     test('Optional Target Time (date-only events and weeks/days calculation)', () {
-      final now = DateTime(2026, 11, 19, 15, 30); // 3:30 PM
-      final targetDate = DateTime(2026, 12, 3); // Dec 3, 2026 (exact 14 calendar days away)
+      final realNow = DateTime.now();
+      final now = DateTime(realNow.year, realNow.month, realNow.day, 15, 30); // 3:30 PM today
+      final targetDate = DateTime(realNow.year, realNow.month, realNow.day).add(const Duration(days: 14)); // exact 14 calendar days away
 
       // When hasTargetTime is false: exact 2 weeks without hours/mins interference
       final dateOnlyCounter = CounterModel(
@@ -328,7 +329,7 @@ void main() {
       expect(restored.hasTargetTime, isFalse);
 
       // On the day of event, isCompleted is false (it's the event day!)
-      final onEventDay = DateTime(2026, 12, 3, 10, 0);
+      final onEventDay = DateTime(targetDate.year, targetDate.month, targetDate.day, 10, 0);
       expect(dateOnlyCounter.calculateBreakdown(at: onEventDay).weeks, 0);
       expect(dateOnlyCounter.calculateBreakdown(at: onEventDay).days, 0);
 

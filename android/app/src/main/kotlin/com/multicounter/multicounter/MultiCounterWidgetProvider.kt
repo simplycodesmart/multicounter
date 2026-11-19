@@ -400,6 +400,10 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             JSONObject()
         }
 
+        if (config.optBoolean("isDeleted", false)) {
+            cancelWidgetRefresh(context, widgetId)
+        }
+
         renderWidget(
             context,
             manager,
@@ -466,15 +470,18 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
 
         // Counter configuration
         val counterId = config.optString("counterId", "")
-        val hasConfig = counterId.isNotBlank() &&
+        val isDeleted = config.optBoolean("isDeleted", false)
+        val hasConfig = !isDeleted && counterId.isNotBlank() &&
             counterId != "null"
 
             android.util.Log.d(
                 "MultiCounterWidget",
-                "Rendering widget $widgetId, counterId=$counterId, config=$config"
+                "Rendering widget $widgetId, counterId=$counterId, isDeleted=$isDeleted, config=$config"
             )
 
-        val title = if (hasConfig) {
+        val title = if (isDeleted) {
+            "Counter Deleted"
+        } else if (hasConfig) {
             config.optString("title", "")
         } else {
             ""
@@ -589,19 +596,23 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             background
         )
 
-        val iconEmoji = config.optString("iconEmoji", "").ifBlank {
-            when {
-                title.contains("wedding", ignoreCase = true) || title.contains("marry", ignoreCase = true) -> "💍"
-                title.contains("pregnant", ignoreCase = true) || title.contains("pregnancy", ignoreCase = true) || title.contains("trimester", ignoreCase = true) -> "🤰"
-                title.contains("baby", ignoreCase = true) || title.contains("birth", ignoreCase = true) -> "👶"
-                title.contains("work", ignoreCase = true) -> "💼"
-                title.contains("anniversary", ignoreCase = true) -> "🥂"
-                title.contains("birthday", ignoreCase = true) -> "🎂"
-                title.contains("graduat", ignoreCase = true) -> "🎓"
-                title.contains("vacation", ignoreCase = true) || title.contains("trip", ignoreCase = true) -> "🏖️"
-                isTally -> "🎯"
-                isCountUp -> "📈"
-                else -> "⏱️"
+        val iconEmoji = if (isDeleted) {
+            "🗑️"
+        } else {
+            config.optString("iconEmoji", "").ifBlank {
+                when {
+                    title.contains("wedding", ignoreCase = true) || title.contains("marry", ignoreCase = true) -> "💍"
+                    title.contains("pregnant", ignoreCase = true) || title.contains("pregnancy", ignoreCase = true) || title.contains("trimester", ignoreCase = true) -> "🤰"
+                    title.contains("baby", ignoreCase = true) || title.contains("birth", ignoreCase = true) -> "👶"
+                    title.contains("work", ignoreCase = true) -> "💼"
+                    title.contains("anniversary", ignoreCase = true) -> "🥂"
+                    title.contains("birthday", ignoreCase = true) -> "🎂"
+                    title.contains("graduat", ignoreCase = true) -> "🎓"
+                    title.contains("vacation", ignoreCase = true) || title.contains("trip", ignoreCase = true) -> "🏖️"
+                    isTally -> "🎯"
+                    isCountUp -> "📈"
+                    else -> "⏱️"
+                }
             }
         }
 
@@ -609,7 +620,7 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
 
         // Only show header if showTitle is enabled AND counter has a real custom title (not default app name)
         val isDefaultAppTitle = title.isBlank() || title.equals("MultiCounter", ignoreCase = true)
-        val shouldShowHeader = showTitle && hasConfig && !isDefaultAppTitle
+        val shouldShowHeader = isDeleted || (showTitle && hasConfig && !isDefaultAppTitle)
 
         views.setViewVisibility(
             R.id.widget_header,
@@ -666,7 +677,11 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
         }
         val isTargetReached = isTally && targetValue > 0L && currentValue >= targetValue
 
-        if (isToday) {
+        if (isDeleted) {
+            views.setViewVisibility(R.id.widget_status_banner, View.VISIBLE)
+            views.setTextViewText(R.id.widget_status_banner, "Tap to select a counter or remove")
+            views.setTextColor(R.id.widget_status_banner, accent)
+        } else if (isToday) {
             views.setViewVisibility(R.id.widget_status_banner, View.VISIBLE)
             views.setTextViewText(R.id.widget_status_banner, "TODAY IS THE DAY! 🎉")
             views.setTextColor(R.id.widget_status_banner, accent)
@@ -1044,17 +1059,21 @@ class MultiCounterWidgetProvider : AppWidgetProvider() {
             if (hasConfig && isTally) View.VISIBLE else View.GONE
         )
 
-        // Clicking opens the app with this widget's own counter ID.
-        val launchIntent = Intent(
-            context,
-            MainActivity::class.java
-        ).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-        
-            putExtra("widget_id", widgetId)
-            putExtra("counter_id", counterId)
+        // Clicking opens the app with this widget's own counter ID, or opens picker if deleted/unconfigured.
+        val launchIntent = if (isDeleted || !hasConfig) {
+            Intent(context, WidgetConfigureActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            }
+        } else {
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("widget_id", widgetId)
+                putExtra("counter_id", counterId)
+            }
         }
 
         val pendingIntent = PendingIntent.getActivity(

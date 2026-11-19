@@ -7,6 +7,8 @@ import 'package:multicounter/models/counter_model.dart';
 import 'package:multicounter/services/home_screen_widget_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Accessibility & Color Blind Mode Tests', () {
     test('All ColorBlindMode options provide valid labels and descriptions', () {
       for (final mode in ColorBlindMode.values) {
@@ -179,6 +181,34 @@ void main() {
       expect(decodedClone['fontSize'], 32.0);
       expect(decodedClone['layout'], 'Bold');
       expect(decodedClone['background'], 0xFF101827);
+    });
+
+    test('Deleting a counter cleans up its isolated design and marks assigned widgets as deleted', () async {
+      final prefs = await SharedPreferences.getInstance();
+      const counterId = 'counter-to-delete';
+      const widgetId = 101;
+
+      // 1. Setup isolated counter design
+      await prefs.setString(
+        HomeScreenWidgetService.counterDesignKey(counterId),
+        jsonEncode({'layout': 'Bold', 'fontSize': 30.0}),
+      );
+
+      // 2. Setup widget design bound to this counter
+      await prefs.setString(
+        HomeScreenWidgetService.widgetDesignKey(widgetId),
+        jsonEncode({
+          'counterId': counterId,
+          'title': 'My Event',
+          'layout': 'Classic',
+        }),
+      );
+
+      // 3. Perform counter deletion cleanup
+      await HomeScreenWidgetService.handleCounterDeleted(counterId);
+
+      // 4. Verify counter-specific design is removed
+      expect(prefs.containsKey(HomeScreenWidgetService.counterDesignKey(counterId)), isFalse);
     });
   });
 }
